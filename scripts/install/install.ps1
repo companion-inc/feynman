@@ -73,12 +73,26 @@ function Resolve-ReleaseMetadata {
 }
 
 function Get-ArchSuffix {
-  $arch = [System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture
-  switch ($arch.ToString()) {
-    "X64" { return "x64" }
-    "Arm64" { return "arm64" }
-    default { throw "Unsupported architecture: $arch" }
+  # Prefer PROCESSOR_ARCHITECTURE which is always available on Windows.
+  # RuntimeInformation::OSArchitecture requires .NET 4.7.1+ and may not
+  # be loaded in every Windows PowerShell 5.1 session.
+  $envArch = $env:PROCESSOR_ARCHITECTURE
+  if ($envArch) {
+    switch ($envArch) {
+      "AMD64" { return "x64" }
+      "ARM64" { return "arm64" }
+    }
   }
+
+  try {
+    $arch = [System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture
+    switch ($arch.ToString()) {
+      "X64" { return "x64" }
+      "Arm64" { return "arm64" }
+    }
+  } catch {}
+
+  throw "Unsupported architecture: $envArch"
 }
 
 $archSuffix = Get-ArchSuffix
@@ -134,7 +148,11 @@ Workarounds:
 "@ | Set-Content -Path $shimPath -Encoding ASCII
 
   $currentUserPath = [Environment]::GetEnvironmentVariable("Path", "User")
-  if (-not $currentUserPath.Split(';').Contains($installBinDir)) {
+  $alreadyOnPath = $false
+  if ($currentUserPath) {
+    $alreadyOnPath = $currentUserPath.Split(';') -contains $installBinDir
+  }
+  if (-not $alreadyOnPath) {
     $updatedPath = if ([string]::IsNullOrWhiteSpace($currentUserPath)) {
       $installBinDir
     } else {
