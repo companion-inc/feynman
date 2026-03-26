@@ -7,11 +7,14 @@ import { ensureSupportedNodeVersion } from "../system/node-version.js";
 export async function launchPiChat(options: PiRuntimeOptions): Promise<void> {
 	ensureSupportedNodeVersion();
 
-	const { piCliPath, promisePolyfillPath } = resolvePiPaths(options.appRoot);
+	const { piCliPath, promisePolyfillPath, promisePolyfillSourcePath, tsxLoaderPath } = resolvePiPaths(options.appRoot);
 	if (!existsSync(piCliPath)) {
 		throw new Error(`Pi CLI not found: ${piCliPath}`);
 	}
-	if (!existsSync(promisePolyfillPath)) {
+
+	const useBuiltPolyfill = existsSync(promisePolyfillPath);
+	const useDevPolyfill = !useBuiltPolyfill && existsSync(promisePolyfillSourcePath) && existsSync(tsxLoaderPath);
+	if (!useBuiltPolyfill && !useDevPolyfill) {
 		throw new Error(`Promise polyfill not found: ${promisePolyfillPath}`);
 	}
 
@@ -19,7 +22,11 @@ export async function launchPiChat(options: PiRuntimeOptions): Promise<void> {
 		process.stdout.write("\x1b[2J\x1b[3J\x1b[H");
 	}
 
-	const child = spawn(process.execPath, ["--import", promisePolyfillPath, piCliPath, ...buildPiArgs(options)], {
+	const importArgs = useDevPolyfill
+		? ["--import", tsxLoaderPath, "--import", promisePolyfillSourcePath]
+		: ["--import", promisePolyfillPath];
+
+	const child = spawn(process.execPath, [...importArgs, piCliPath, ...buildPiArgs(options)], {
 		cwd: options.workingDir,
 		stdio: "inherit",
 		env: buildPiEnv(options),

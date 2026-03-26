@@ -1,4 +1,4 @@
-import { AuthStorage, ModelRegistry } from "@mariozechner/pi-coding-agent";
+import { createModelRegistry } from "./registry.js";
 
 type ModelRecord = {
 	provider: string;
@@ -166,10 +166,6 @@ function sortProviders(left: ProviderStatus, right: ProviderStatus): number {
 	return left.label.localeCompare(right.label);
 }
 
-function createModelRegistry(authPath: string): ModelRegistry {
-	return new ModelRegistry(AuthStorage.create(authPath));
-}
-
 export function getAvailableModelRecords(authPath: string): ModelRecord[] {
 	return createModelRegistry(authPath)
 		.getAvailable()
@@ -258,7 +254,9 @@ export function buildModelStatusSnapshotFromRecords(
 	const guidance: string[] = [];
 	if (available.length === 0) {
 		guidance.push("No authenticated Pi models are available yet.");
-		guidance.push("Run `feynman model login <provider>` or add provider credentials that Pi can see.");
+		guidance.push(
+			"Run `feynman model login <provider>` (OAuth) or configure an API key (env var, auth.json, or models.json for custom providers).",
+		);
 		guidance.push("After auth is in place, rerun `feynman model list` or `feynman setup model`.");
 	} else if (!current) {
 		guidance.push(`No default research model is set. Recommended: ${recommended?.spec}.`);

@@ -29,6 +29,7 @@ function printNonInteractiveSetupGuidance(): void {
 	printInfo("Non-interactive terminal. Use explicit commands:");
 	printInfo("  feynman model login <provider>");
 	printInfo("  feynman model set <provider/model>");
+	printInfo("  # or configure API keys via env vars/auth.json and rerun `feynman model list`");
 	printInfo("  feynman alpha login");
 	printInfo("  feynman doctor");
 }

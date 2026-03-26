@@ -25,6 +25,8 @@ export function resolvePiPaths(appRoot: string) {
 		piPackageRoot: resolve(appRoot, "node_modules", "@mariozechner", "pi-coding-agent"),
 		piCliPath: resolve(appRoot, "node_modules", "@mariozechner", "pi-coding-agent", "dist", "cli.js"),
 		promisePolyfillPath: resolve(appRoot, "dist", "system", "promise-polyfill.js"),
+		promisePolyfillSourcePath: resolve(appRoot, "src", "system", "promise-polyfill.ts"),
+		tsxLoaderPath: resolve(appRoot, "node_modules", "tsx", "dist", "loader.mjs"),
 		researchToolsPath: resolve(appRoot, "extensions", "research-tools.ts"),
 		promptTemplatePath: resolve(appRoot, "prompts"),
 		systemPromptPath: resolve(appRoot, ".feynman", "SYSTEM.md"),
@@ -38,7 +40,11 @@ export function validatePiInstallation(appRoot: string): string[] {
 	const missing: string[] = [];
 
 	if (!existsSync(paths.piCliPath)) missing.push(paths.piCliPath);
-	if (!existsSync(paths.promisePolyfillPath)) missing.push(paths.promisePolyfillPath);
+	if (!existsSync(paths.promisePolyfillPath)) {
+		// Dev fallback: allow running from source without `dist/` build artifacts.
+		const hasDevPolyfill = existsSync(paths.promisePolyfillSourcePath) && existsSync(paths.tsxLoaderPath);
+		if (!hasDevPolyfill) missing.push(paths.promisePolyfillPath);
+	}
 	if (!existsSync(paths.researchToolsPath)) missing.push(paths.researchToolsPath);
 	if (!existsSync(paths.promptTemplatePath)) missing.push(paths.promptTemplatePath);
 
@@ -94,6 +100,8 @@ export function buildPiEnv(options: PiRuntimeOptions): NodeJS.ProcessEnv {
 		FEYNMAN_NODE_EXECUTABLE: process.execPath,
 		FEYNMAN_BIN_PATH: resolve(options.appRoot, "bin", "feynman.js"),
 		FEYNMAN_NPM_PREFIX: feynmanNpmPrefixPath,
+		// Ensure the Pi child process uses Feynman's agent dir for auth/models/settings.
+		PI_CODING_AGENT_DIR: options.feynmanAgentDir,
 		PANDOC_PATH: process.env.PANDOC_PATH ?? resolveExecutable("pandoc", PANDOC_FALLBACK_PATHS),
 		PI_HARDWARE_CURSOR: process.env.PI_HARDWARE_CURSOR ?? "1",
 		PI_SKIP_VERSION_CHECK: process.env.PI_SKIP_VERSION_CHECK ?? "1",
