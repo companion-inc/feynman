@@ -20,10 +20,15 @@ function isSupportedNodeVersion(version = process.versions.node) {
 }
 
 function getUnsupportedNodeVersionLines(version = process.versions.node) {
+	const isWindows = process.platform === "win32";
 	return [
 		`feynman requires Node.js ${MIN_NODE_VERSION} or later (detected ${version}).`,
-		"Switch to Node 20 with `nvm install 20 && nvm use 20`, or use the standalone installer:",
-		"curl -fsSL https://feynman.is/install | bash",
+		isWindows
+			? "Install a newer Node.js from https://nodejs.org, or use the standalone installer:"
+			: "Switch to Node 20 with `nvm install 20 && nvm use 20`, or use the standalone installer:",
+		isWindows
+			? "irm https://feynman.is/install.ps1 | iex"
+			: "curl -fsSL https://feynman.is/install | bash",
 	];
 }
 

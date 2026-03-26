@@ -13,13 +13,35 @@ export function setupPreviewDependencies(): PreviewSetupResult {
 		return { status: "ready", message: `pandoc already installed at ${pandocPath}` };
 	}
 
-	const brewPath = resolveExecutable("brew", BREW_FALLBACK_PATHS);
-	if (process.platform === "darwin" && brewPath) {
-		const result = spawnSync(brewPath, ["install", "pandoc"], { stdio: "inherit" });
-		if (result.status !== 0) {
-			throw new Error("Failed to install pandoc via Homebrew.");
+	if (process.platform === "darwin") {
+		const brewPath = resolveExecutable("brew", BREW_FALLBACK_PATHS);
+		if (brewPath) {
+			const result = spawnSync(brewPath, ["install", "pandoc"], { stdio: "inherit" });
+			if (result.status !== 0) {
+				throw new Error("Failed to install pandoc via Homebrew.");
+			}
+			return { status: "installed", message: "Preview dependency installed: pandoc" };
 		}
-		return { status: "installed", message: "Preview dependency installed: pandoc" };
+	}
+
+	if (process.platform === "win32") {
+		const wingetPath = resolveExecutable("winget");
+		if (wingetPath) {
+			const result = spawnSync(wingetPath, ["install", "--id", "JohnMacFarlane.Pandoc", "-e"], { stdio: "inherit" });
+			if (result.status === 0) {
+				return { status: "installed", message: "Preview dependency installed: pandoc (via winget)" };
+			}
+		}
+	}
+
+	if (process.platform === "linux") {
+		const aptPath = resolveExecutable("apt-get");
+		if (aptPath) {
+			const result = spawnSync(aptPath, ["install", "-y", "pandoc"], { stdio: "inherit" });
+			if (result.status === 0) {
+				return { status: "installed", message: "Preview dependency installed: pandoc (via apt)" };
+			}
+		}
 	}
 
 	return {

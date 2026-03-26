@@ -13,8 +13,16 @@
 
 ### Installation
 
+**macOS / Linux:**
+
 ```bash
 curl -fsSL https://feynman.is/install | bash
+```
+
+**Windows (PowerShell):**
+
+```powershell
+irm https://feynman.is/install.ps1 | iex
 ```
 
 If you install via `pnpm` or `bun` instead of the standalone bundle, Feynman requires Node.js `20.18.1` or newer.
@@ -23,16 +31,32 @@ If you install via `pnpm` or `bun` instead of the standalone bundle, Feynman req
 
 If you want just the research skills without the full terminal app:
 
+**macOS / Linux:**
+
 ```bash
 curl -fsSL https://feynman.is/install-skills | bash
+```
+
+**Windows (PowerShell):**
+
+```powershell
+irm https://feynman.is/install-skills.ps1 | iex
 ```
 
 That installs the skill library into `~/.codex/skills/feynman`.
 
 For a repo-local install instead:
 
+**macOS / Linux:**
+
 ```bash
 curl -fsSL https://feynman.is/install-skills | bash -s -- --repo
+```
+
+**Windows (PowerShell):**
+
+```powershell
+& ([scriptblock]::Create((irm https://feynman.is/install-skills.ps1))) -Scope Repo
 ```
 
 That installs into `.agents/skills/feynman` under the current repository.

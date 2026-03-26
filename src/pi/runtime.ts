@@ -1,5 +1,5 @@
 import { existsSync, readFileSync } from "node:fs";
-import { dirname, resolve } from "node:path";
+import { delimiter, dirname, resolve } from "node:path";
 
 import {
 	BROWSER_FALLBACK_PATHS,
@@ -83,11 +83,11 @@ export function buildPiEnv(options: PiRuntimeOptions): NodeJS.ProcessEnv {
 
 	const currentPath = process.env.PATH ?? "";
 	const binEntries = [paths.nodeModulesBinPath, resolve(paths.piWorkspaceNodeModulesPath, ".bin"), feynmanNpmBinPath];
-	const binPath = binEntries.join(":");
+	const binPath = binEntries.join(delimiter);
 
 	return {
 		...process.env,
-		PATH: `${binPath}:${currentPath}`,
+		PATH: `${binPath}${delimiter}${currentPath}`,
 		FEYNMAN_VERSION: options.feynmanVersion,
 		FEYNMAN_SESSION_DIR: options.sessionDir,
 		FEYNMAN_MEMORY_DIR: resolve(dirname(options.feynmanAgentDir), "memory"),
