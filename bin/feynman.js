@@ -22,5 +22,5 @@ if (compareNodeVersions(parseNodeVersion(process.versions.node), parseNodeVersio
   console.error("curl -fsSL https://feynman.is/install | bash");
   process.exit(1);
 }
-await import("../scripts/patch-embedded-pi.mjs");
-await import("../dist/index.js");
+await import(new URL("../scripts/patch-embedded-pi.mjs", import.meta.url).href);
+await import(new URL("../dist/index.js", import.meta.url).href);
