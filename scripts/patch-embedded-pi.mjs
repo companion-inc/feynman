@@ -556,6 +556,13 @@ if (alphaHubAuthPath && existsSync(alphaHubAuthPath)) {
 	if (source.includes(oldError)) {
 		source = source.replace(oldError, newError);
 	}
+	// Fix Windows browser launch for alpha login: `start "<url>"` is parsed as a title.
+	// Use cmd /c start "" "<url>" so URLs open reliably in the default browser.
+	const brokenWinOpen = "else if (plat === 'win32') execSync(`start \"${url}\"`);";
+	const fixedWinOpen = "else if (plat === 'win32') execSync(`cmd /c start \"\" \"${url}\"`);";
+	if (source.includes(brokenWinOpen)) {
+		source = source.replace(brokenWinOpen, fixedWinOpen);
+	}
 	writeFileSync(alphaHubAuthPath, source, "utf8");
 }
 

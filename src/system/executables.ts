@@ -30,6 +30,23 @@ export function resolveExecutable(name: string, fallbackPaths: string[] = []): s
 		}
 	}
 
+	if (process.platform === "win32") {
+		const result = spawnSync("where", [name], {
+			encoding: "utf8",
+			stdio: ["ignore", "pipe", "ignore"],
+		});
+		if (result.status === 0) {
+			const resolved = result.stdout
+				.split(/\r?\n/)
+				.map((entry) => entry.trim())
+				.find(Boolean);
+			if (resolved) {
+				return resolved;
+			}
+		}
+		return undefined;
+	}
+
 	const result = spawnSync("sh", ["-lc", `command -v ${name}`], {
 		encoding: "utf8",
 		stdio: ["ignore", "pipe", "ignore"],
