@@ -139,12 +139,18 @@ function restorePackagedWorkspace(packageSpecs) {
 		timeout: 300000,
 	});
 
+	// On Windows, tar may exit non-zero due to symlink creation failures in
+	// .bin/ directories. These are non-fatal — check whether the actual
+	// package directories were extracted successfully.
+	const packagesPresent = packageSpecs.every((spec) => existsSync(resolve(workspaceRoot, parsePackageName(spec))));
+	if (packagesPresent) return true;
+
 	if (result.status !== 0) {
 		if (result.stderr?.length) process.stderr.write(result.stderr);
 		return false;
 	}
 
-	return packageSpecs.every((spec) => existsSync(resolve(workspaceRoot, parsePackageName(spec))));
+	return false;
 }
 
 function refreshPackagedWorkspace(packageSpecs) {
@@ -156,12 +162,18 @@ function resolveExecutable(name, fallbackPaths = []) {
 		if (existsSync(candidate)) return candidate;
 	}
 
-	const result = spawnSync("sh", ["-lc", `command -v ${name}`], {
-		encoding: "utf8",
-		stdio: ["ignore", "pipe", "ignore"],
-	});
+	const isWindows = process.platform === "win32";
+	const result = isWindows
+		? spawnSync("cmd", ["/c", `where ${name}`], {
+				encoding: "utf8",
+				stdio: ["ignore", "pipe", "ignore"],
+			})
+		: spawnSync("sh", ["-lc", `command -v ${name}`], {
+				encoding: "utf8",
+				stdio: ["ignore", "pipe", "ignore"],
+			});
 	if (result.status === 0) {
-		const resolved = result.stdout.trim();
+		const resolved = result.stdout.trim().split(/\r?\n/)[0];
 		if (resolved) return resolved;
 	}
 	return null;
