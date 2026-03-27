@@ -30,6 +30,11 @@ test("buildPiArgs includes configured runtime paths and prompt", () => {
 });
 
 test("buildPiEnv wires Feynman paths into the Pi environment", () => {
+	const previousUppercasePrefix = process.env.NPM_CONFIG_PREFIX;
+	const previousLowercasePrefix = process.env.npm_config_prefix;
+	process.env.NPM_CONFIG_PREFIX = "/tmp/global-prefix";
+	process.env.npm_config_prefix = "/tmp/global-prefix-lower";
+
 	const env = buildPiEnv({
 		appRoot: "/repo/feynman",
 		workingDir: "/workspace",
@@ -38,17 +43,30 @@ test("buildPiEnv wires Feynman paths into the Pi environment", () => {
 		feynmanVersion: "0.1.5",
 	});
 
-	assert.equal(env.FEYNMAN_SESSION_DIR, "/sessions");
-	assert.equal(env.FEYNMAN_BIN_PATH, "/repo/feynman/bin/feynman.js");
-	assert.equal(env.FEYNMAN_MEMORY_DIR, "/home/.feynman/memory");
-	assert.equal(env.FEYNMAN_NPM_PREFIX, "/home/.feynman/npm-global");
-	assert.equal(env.NPM_CONFIG_PREFIX, "/home/.feynman/npm-global");
-	assert.equal(env.npm_config_prefix, "/home/.feynman/npm-global");
-	assert.ok(
-		env.PATH?.startsWith(
-			"/repo/feynman/node_modules/.bin:/repo/feynman/.feynman/npm/node_modules/.bin:/home/.feynman/npm-global/bin:",
-		),
-	);
+	try {
+		assert.equal(env.FEYNMAN_SESSION_DIR, "/sessions");
+		assert.equal(env.FEYNMAN_BIN_PATH, "/repo/feynman/bin/feynman.js");
+		assert.equal(env.FEYNMAN_MEMORY_DIR, "/home/.feynman/memory");
+		assert.equal(env.FEYNMAN_NPM_PREFIX, "/home/.feynman/npm-global");
+		assert.equal(env.NPM_CONFIG_PREFIX, "/home/.feynman/npm-global");
+		assert.equal(env.npm_config_prefix, "/home/.feynman/npm-global");
+		assert.ok(
+			env.PATH?.startsWith(
+				"/repo/feynman/node_modules/.bin:/repo/feynman/.feynman/npm/node_modules/.bin:/home/.feynman/npm-global/bin:",
+			),
+		);
+	} finally {
+		if (previousUppercasePrefix === undefined) {
+			delete process.env.NPM_CONFIG_PREFIX;
+		} else {
+			process.env.NPM_CONFIG_PREFIX = previousUppercasePrefix;
+		}
+		if (previousLowercasePrefix === undefined) {
+			delete process.env.npm_config_prefix;
+		} else {
+			process.env.npm_config_prefix = previousLowercasePrefix;
+		}
+	}
 });
 
 test("resolvePiPaths includes the Promise.withResolvers polyfill path", () => {

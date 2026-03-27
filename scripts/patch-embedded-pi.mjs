@@ -553,6 +553,11 @@ if (alphaHubAuthPath && existsSync(alphaHubAuthPath)) {
 	if (source.includes(oldError)) {
 		source = source.replace(oldError, newError);
 	}
+	const brokenWinOpen = "else if (plat === 'win32') execSync(`start \"${url}\"`);";
+	const fixedWinOpen = "else if (plat === 'win32') execSync(`cmd /c start \"\" \"${url}\"`);";
+	if (source.includes(brokenWinOpen)) {
+		source = source.replace(brokenWinOpen, fixedWinOpen);
+	}
 	writeFileSync(alphaHubAuthPath, source, "utf8");
 }
 
