@@ -161,8 +161,9 @@ async function resolveApiKeyConfig(apiKeyConfig: string): Promise<string | undef
 	if (trimmed.startsWith("!")) {
 		const command = trimmed.slice(1).trim();
 		if (!command) return undefined;
+		const shell = process.platform === "win32" ? process.env.ComSpec || "cmd.exe" : process.env.SHELL || "/bin/sh";
 		try {
-			const { stdout } = await exec(command, { shell: "/bin/bash", maxBuffer: 1024 * 1024 });
+			const { stdout } = await exec(command, { shell, maxBuffer: 1024 * 1024 });
 			const value = stdout.trim();
 			return value || undefined;
 		} catch {
