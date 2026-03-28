@@ -1,6 +1,7 @@
 import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
 
 import { registerAlphaTools } from "./research-tools/alpha.js";
+import { registerFeynmanModelCommand } from "./research-tools/feynman-model.js";
 import { installFeynmanHeader } from "./research-tools/header.js";
 import { registerHelpCommand } from "./research-tools/help.js";
 import { registerInitCommand, registerOutputsCommand } from "./research-tools/project.js";
@@ -17,6 +18,7 @@ export default function researchTools(pi: ExtensionAPI): void {
 	});
 
 	registerAlphaTools(pi);
+	registerFeynmanModelCommand(pi);
 	registerHelpCommand(pi);
 	registerInitCommand(pi);
 	registerOutputsCommand(pi);
