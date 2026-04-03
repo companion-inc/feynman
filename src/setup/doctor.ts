@@ -187,6 +187,12 @@ export function runDoctor(options: DoctorOptions): void {
 			console.log("  note: custom providers with a models[] list need apiKey in models.json to be available.");
 		}
 	}
+	const envBaseUrl = process.env.OPENAI_BASE_URL?.trim();
+	if (envBaseUrl) {
+		console.log(`OPENAI_BASE_URL: ${envBaseUrl}`);
+		console.log(`OPENAI_MODEL: ${process.env.OPENAI_MODEL?.trim() ?? "not set (auto-discover)"}`);
+		console.log(`OPENAI_API_KEY: ${process.env.OPENAI_API_KEY?.trim() ? "set" : "not set"}`);
+	}
 	console.log(`pandoc: ${pandocPath ?? "missing"}`);
 	console.log(`browser preview runtime: ${browserPath ?? "missing"}`);
 	for (const line of formatPiWebAccessDoctorLines()) {

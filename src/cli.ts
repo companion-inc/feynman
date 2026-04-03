@@ -33,7 +33,8 @@ import { runDoctor, runStatus } from "./setup/doctor.js";
 import { setupPreviewDependencies } from "./setup/preview.js";
 import { runSetup } from "./setup/setup.js";
 import { ASH, printAsciiHeader, printInfo, printPanel, printSection, RESET, SAGE } from "./ui/terminal.js";
-import { createModelRegistry } from "./model/registry.js";
+import { createModelRegistry, getModelsJsonPath } from "./model/registry.js";
+import { applyEnvProviderOverrides } from "./model/env-providers.js";
 import {
 	cliCommandSections,
 	formatCliWorkflowUsage,
@@ -362,6 +363,10 @@ export async function main(): Promise<void> {
 	const thinkingLevel = normalizeThinkingLevel(values.thinking ?? process.env.FEYNMAN_THINKING) ?? "medium";
 
 	normalizeFeynmanSettings(feynmanSettingsPath, bundledSettingsPath, thinkingLevel, feynmanAuthPath);
+
+	// Sync OPENAI_BASE_URL / OPENAI_MODEL env vars into models.json before any
+	// model-related commands or validation runs.
+	await applyEnvProviderOverrides(getModelsJsonPath(feynmanAuthPath));
 
 	if (values.doctor) {
 		runDoctor({

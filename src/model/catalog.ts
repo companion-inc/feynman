@@ -29,6 +29,7 @@ export type ModelStatusSnapshot = {
 const PROVIDER_LABELS: Record<string, string> = {
 	anthropic: "Anthropic",
 	openai: "OpenAI",
+	"openai-custom": "OpenAI-Compatible (OPENAI_BASE_URL)",
 	"openai-codex": "OpenAI Codex",
 	openrouter: "OpenRouter",
 	google: "Google",
