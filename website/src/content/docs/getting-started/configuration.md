@@ -41,6 +41,21 @@ To see all models you have configured:
 feynman model list
 ```
 
+## Subagent model overrides
+
+Feynman's bundled subagents inherit the main default model unless you override them explicitly. Inside the REPL, run:
+
+```bash
+/feynman-model
+```
+
+This opens an interactive picker where you can either:
+
+- change the **main (default)** model for the whole session environment, or
+- assign a different model to a specific bundled subagent such as `researcher`, `reviewer`, `writer`, or `verifier`
+
+Per-subagent overrides are persisted in the synced agent files under `~/.feynman/agent/agents/` by adding a `model:` frontmatter field. Removing that field makes the subagent inherit the main default model again.
+
 ## Thinking levels
 
 The `thinkingLevel` field controls how much reasoning the model does before responding. Available levels are `off`, `minimal`, `low`, `medium`, `high`, and `xhigh`. Higher levels produce more thorough analysis at the cost of latency and token usage. You can override per-session:

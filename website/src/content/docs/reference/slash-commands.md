@@ -30,12 +30,15 @@ These are the primary commands you will use day-to-day. Each workflow dispatches
 | `/log` | Write a durable session log with completed work, findings, open questions, and next steps |
 | `/jobs` | Inspect active background work: running processes, scheduled follow-ups, and active watches |
 | `/help` | Show grouped Feynman commands and prefill the editor with a selected command |
+| `/feynman-model` | Open the model picker for the main default model and per-subagent overrides |
 | `/init` | Bootstrap `AGENTS.md` and session-log folders for a new research project |
 | `/outputs` | Browse all research artifacts (papers, outputs, experiments, notes) |
 | `/search` | Search prior session transcripts for past research and findings |
 | `/preview` | Preview the current artifact as rendered HTML or PDF |
 
 Session management commands help you organize ongoing work. The `/log` command is particularly useful at the end of a research session to capture what was accomplished and what remains.
+
+The `/feynman-model` command opens an interactive picker that lets you either change the main default model or assign a different model to a specific bundled subagent like `researcher`, `reviewer`, `writer`, or `verifier`.
 
 ## Running workflows from the CLI
 
