@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { delimiter, resolve } from "node:path";
 
 import { applyFeynmanPackageManagerEnv, buildPiArgs, buildPiEnv, resolvePiPaths } from "../src/pi/runtime.js";
 
@@ -18,9 +19,9 @@ test("buildPiArgs includes configured runtime paths and prompt", () => {
 		"--session-dir",
 		"/sessions",
 		"--extension",
-		"/repo/feynman/extensions/research-tools.ts",
+		resolve("/repo/feynman", "extensions", "research-tools.ts"),
 		"--prompt-template",
-		"/repo/feynman/prompts",
+		resolve("/repo/feynman", "prompts"),
 		"--model",
 		"openai:gpt-5.4",
 		"--thinking",
@@ -45,15 +46,19 @@ test("buildPiEnv wires Feynman paths into the Pi environment", () => {
 
 	try {
 		assert.equal(env.FEYNMAN_SESSION_DIR, "/sessions");
-		assert.equal(env.FEYNMAN_BIN_PATH, "/repo/feynman/bin/feynman.js");
-		assert.equal(env.FEYNMAN_MEMORY_DIR, "/home/.feynman/memory");
-		assert.equal(env.FEYNMAN_NPM_PREFIX, "/home/.feynman/npm-global");
-		assert.equal(env.NPM_CONFIG_PREFIX, "/home/.feynman/npm-global");
-		assert.equal(env.npm_config_prefix, "/home/.feynman/npm-global");
+		assert.equal(env.FEYNMAN_BIN_PATH, resolve("/repo/feynman", "bin", "feynman.js"));
+		assert.equal(env.FEYNMAN_MEMORY_DIR, resolve("/home/.feynman", "memory"));
+		assert.equal(env.FEYNMAN_NPM_PREFIX, resolve("/home/.feynman", "npm-global"));
+		assert.equal(env.NPM_CONFIG_PREFIX, resolve("/home/.feynman", "npm-global"));
+		assert.equal(env.npm_config_prefix, resolve("/home/.feynman", "npm-global"));
 		assert.equal(env.PI_CODING_AGENT_DIR, "/home/.feynman/agent");
 		assert.ok(
 			env.PATH?.startsWith(
-				"/repo/feynman/node_modules/.bin:/repo/feynman/.feynman/npm/node_modules/.bin:/home/.feynman/npm-global/bin:",
+				[
+					resolve("/repo/feynman", "node_modules", ".bin"),
+					resolve("/repo/feynman", ".feynman", "npm", "node_modules", ".bin"),
+					resolve("/home/.feynman", "npm-global", "bin"),
+				].join(delimiter) + delimiter,
 			),
 		);
 	} finally {
@@ -78,10 +83,10 @@ test("applyFeynmanPackageManagerEnv pins npm globals to the Feynman prefix", () 
 	try {
 		const prefix = applyFeynmanPackageManagerEnv("/home/.feynman/agent");
 
-		assert.equal(prefix, "/home/.feynman/npm-global");
-		assert.equal(process.env.FEYNMAN_NPM_PREFIX, "/home/.feynman/npm-global");
-		assert.equal(process.env.NPM_CONFIG_PREFIX, "/home/.feynman/npm-global");
-		assert.equal(process.env.npm_config_prefix, "/home/.feynman/npm-global");
+		assert.equal(prefix, resolve("/home/.feynman", "npm-global"));
+		assert.equal(process.env.FEYNMAN_NPM_PREFIX, resolve("/home/.feynman", "npm-global"));
+		assert.equal(process.env.NPM_CONFIG_PREFIX, resolve("/home/.feynman", "npm-global"));
+		assert.equal(process.env.npm_config_prefix, resolve("/home/.feynman", "npm-global"));
 	} finally {
 		if (previousFeynmanPrefix === undefined) {
 			delete process.env.FEYNMAN_NPM_PREFIX;
@@ -104,5 +109,5 @@ test("applyFeynmanPackageManagerEnv pins npm globals to the Feynman prefix", () 
 test("resolvePiPaths includes the Promise.withResolvers polyfill path", () => {
 	const paths = resolvePiPaths("/repo/feynman");
 
-	assert.equal(paths.promisePolyfillPath, "/repo/feynman/dist/system/promise-polyfill.js");
+	assert.equal(paths.promisePolyfillPath, resolve("/repo/feynman", "dist", "system", "promise-polyfill.js"));
 });
