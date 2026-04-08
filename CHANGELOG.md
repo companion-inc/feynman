@@ -113,3 +113,12 @@ Use this file to track chronology, not release notes. Keep entries short, factua
 - Failed / learned: The remaining ValiChord PR is still stale and mixes a real prompt/skill update with unrelated branch churn; it is a review/triage item, not a clean merge candidate.
 - Blockers: No local build blockers remain; issue/PR closure still depends on the final push landing on `main`.
 - Next: Push the verified cleanup commit, then close issues fixed by the dependency bump plus the new discoverability/service-tier/Windows patches, and close the stale ValiChord PR explicitly instead of leaving it open indefinitely.
+
+### 2026-04-08 16:11 UTC — pi-web-access-config-path (Issue #32)
+
+- Objective: Fix `pi-web-access` ignoring `~/.feynman/web-search.json` and throwing `modelRegistry.getApiKeyAndHeaders is not a function`.
+- Changed: Removed stale `.feynman/vendor-overrides/pi-web-access/*` (imported non-existent `./search-filter.js`); removed dead `syncVendorOverride` in `patch-embedded-pi.mjs`; added `scripts/lib/pi-web-access-patch.mjs` to rewrite hardcoded `~/.pi/web-search.json` paths at runtime using `FEYNMAN_WEB_SEARCH_CONFIG` or `PI_CODING_AGENT_DIR`.
+- Verified: Clean npm install + patch; `feynman doctor` shows `config path: ~/.feynman/web-search.json`; `npm test` passes.
+- Failed / learned: Vendor overrides were stale copies from an older `pi-web-access` version, not intentional customizations; copying them over npm sources caused the bug.
+- Blockers: None.
+- Next: Release and verify tagged install reads from correct config path.

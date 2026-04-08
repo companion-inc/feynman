@@ -6,6 +6,7 @@ import { fileURLToPath } from "node:url";
 import { FEYNMAN_LOGO_HTML } from "../logo.mjs";
 import { patchPiExtensionLoaderSource } from "./lib/pi-extension-loader-patch.mjs";
 import { PI_SUBAGENTS_PATCH_TARGETS, patchPiSubagentsSource } from "./lib/pi-subagents-patch.mjs";
+import { PI_WEB_ACCESS_PATCH_TARGETS, patchPiWebAccessSource } from "./lib/pi-web-access-patch.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const appRoot = resolve(here, "..");
@@ -57,7 +58,6 @@ const extensionLoaderPath = piPackageRoot ? resolve(piPackageRoot, "dist", "core
 const terminalPath = piTuiRoot ? resolve(piTuiRoot, "dist", "terminal.js") : null;
 const editorPath = piTuiRoot ? resolve(piTuiRoot, "dist", "components", "editor.js") : null;
 const workspaceRoot = resolve(appRoot, ".feynman", "npm", "node_modules");
-const vendorOverrideRoot = resolve(appRoot, ".feynman", "vendor-overrides");
 const piSubagentsRoot = resolve(workspaceRoot, "pi-subagents");
 const webAccessPath = resolve(workspaceRoot, "pi-web-access", "index.ts");
 const sessionSearchIndexerPath = resolve(
@@ -182,18 +182,6 @@ function resolveExecutable(name, fallbackPaths = []) {
 		if (resolved) return resolved;
 	}
 	return null;
-}
-
-function syncVendorOverride(relativePath) {
-	const sourcePath = resolve(vendorOverrideRoot, relativePath);
-	const targetPath = resolve(workspaceRoot, relativePath);
-	if (!existsSync(sourcePath) || !existsSync(targetPath)) return;
-
-	const source = readFileSync(sourcePath, "utf8");
-	const current = readFileSync(targetPath, "utf8");
-	if (source !== current) {
-		writeFileSync(targetPath, source, "utf8");
-	}
 }
 
 function ensurePackageWorkspace() {
@@ -540,14 +528,16 @@ if (editorPath && existsSync(editorPath)) {
 }
 
 if (existsSync(webAccessPath)) {
-	for (const relativePath of [
-		"pi-web-access/index.ts",
-		"pi-web-access/gemini-search.ts",
-		"pi-web-access/curator-page.ts",
-		"pi-web-access/curator-server.ts",
-		"pi-web-access/exa.ts",
-	]) {
-		syncVendorOverride(relativePath);
+	// Fix for Issue #32: patch pi-web-access config path handling at runtime.
+	for (const relativePath of PI_WEB_ACCESS_PATCH_TARGETS) {
+		const entryPath = resolve(workspaceRoot, "pi-web-access", relativePath);
+		if (!existsSync(entryPath)) continue;
+
+		const source = readFileSync(entryPath, "utf8");
+		const patched = patchPiWebAccessSource(relativePath, source);
+		if (patched !== source) {
+			writeFileSync(entryPath, patched, "utf8");
+		}
 	}
 
 	const source = readFileSync(webAccessPath, "utf8");
