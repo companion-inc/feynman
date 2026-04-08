@@ -66,3 +66,29 @@ test("resolveInitialPrompt maps top-level research commands to Pi slash workflow
 	assert.equal(resolveInitialPrompt("unknown", ["topic"], undefined, workflows), "unknown topic");
 });
 
+test("chooseRecommendedModel recommends MiniMax-M2.7 when only MiniMax is authenticated", () => {
+	const authPath = createAuthPath({
+		minimax: { type: "api_key", key: "minimax-test-key" },
+	});
+
+	const recommendation = chooseRecommendedModel(authPath);
+
+	assert.equal(recommendation?.spec, "minimax/MiniMax-M2.7");
+});
+
+test("buildModelStatusSnapshotFromRecords recommends minimax/MiniMax-M2.7 over minimax/MiniMax-M2.7-highspeed", () => {
+	const snapshot = buildModelStatusSnapshotFromRecords(
+		[
+			{ provider: "minimax", id: "MiniMax-M2.7" },
+			{ provider: "minimax", id: "MiniMax-M2.7-highspeed" },
+		],
+		[
+			{ provider: "minimax", id: "MiniMax-M2.7" },
+			{ provider: "minimax", id: "MiniMax-M2.7-highspeed" },
+		],
+		undefined,
+	);
+
+	assert.equal(snapshot.recommended, "minimax/MiniMax-M2.7");
+});
+

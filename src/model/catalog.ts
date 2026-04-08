@@ -99,6 +99,14 @@ const RESEARCH_MODEL_PREFERENCES = [
 		spec: "kimi-coding/kimi-k2-thinking",
 		reason: "good fallback when Kimi is the available research model",
 	},
+	{
+		spec: "minimax/MiniMax-M2.7",
+		reason: "good fallback when MiniMax is the available research model",
+	},
+	{
+		spec: "minimax/MiniMax-M2.7-highspeed",
+		reason: "faster MiniMax option when speed is prioritized for research tasks",
+	},
 ];
 
 const PROVIDER_SORT_ORDER = [
