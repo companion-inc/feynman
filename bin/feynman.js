@@ -27,5 +27,9 @@ if (compareNodeVersions(parseNodeVersion(process.versions.node), parseNodeVersio
     : "curl -fsSL https://feynman.is/install | bash");
   process.exit(1);
 }
-await import(new URL("../scripts/patch-embedded-pi.mjs", import.meta.url).href);
-await import(new URL("../dist/index.js", import.meta.url).href);
+import { pathToFileURL } from "node:url";
+import { resolve } from "node:path";
+
+const __dirname = import.meta.dirname;
+await import(pathToFileURL(resolve(__dirname, "..", "scripts", "patch-embedded-pi.mjs")).href);
+await import(pathToFileURL(resolve(__dirname, "..", "dist", "index.js")).href);

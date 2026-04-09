@@ -125,11 +125,17 @@ Workarounds:
   New-Item -ItemType Directory -Path $installBinDir -Force | Out-Null
 
   $shimPath = Join-Path $installBinDir "feynman.cmd"
+  $shimPs1Path = Join-Path $installBinDir "feynman.ps1"
   Write-Host "==> Linking feynman into $installBinDir"
   @"
 @echo off
-"$bundleDir\feynman.cmd" %*
+CALL "$bundleDir\feynman.cmd" %*
 "@ | Set-Content -Path $shimPath -Encoding ASCII
+
+  @"
+`$BundleDir = "$bundleDir"
+& "`$BundleDir\node\node.exe" "`$BundleDir\app\bin\feynman.js" @args
+"@ | Set-Content -Path $shimPs1Path -Encoding UTF8
 
   $currentUserPath = [Environment]::GetEnvironmentVariable("Path", "User")
   $alreadyOnPath = $false
