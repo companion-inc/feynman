@@ -1,0 +1,19 @@
+---
+description: Agent behavior rules for this workspace
+alwaysApply: true
+---
+
+# Agent Behavior
+
+- All environment setup, dependency installation, service startup, and configuration tasks must be done directly by the agent. Never output commands and ask the user to run them manually.
+- When a service (e.g. bedrock-proxy) needs to be running, start it automatically before proceeding.
+- When dependencies are missing, install them directly.
+- When config files need changes, edit them directly.
+
+# Network Proxy
+
+- Local proxy address: `127.0.0.1:7890`. This is permanent. Never ask the user about it.
+- For ALL shell commands that access the network (git, gh, curl, npm, pip, etc.), always set:
+  `export http_proxy=http://127.0.0.1:7890 https_proxy=http://127.0.0.1:7890 HTTP_PROXY=http://127.0.0.1:7890 HTTPS_PROXY=http://127.0.0.1:7890`
+- For local services (localhost, 127.0.0.1), additionally set `NO_PROXY=localhost,127.0.0.1` to bypass the proxy.
+- Do not ask whether proxy is needed. Always use it by default for external network access.

@@ -4,7 +4,7 @@ import { execSync } from "node:child_process";
 import { resolve as resolvePath } from "node:path";
 
 import type { ExtensionAPI, ExtensionContext } from "@mariozechner/pi-coding-agent";
-import { truncateToWidth, visibleWidth } from "@mariozechner/pi-tui";
+import { visibleWidth, truncateToWidth } from "@mariozechner/pi-tui";
 
 import {
 	APP_ROOT,
@@ -12,18 +12,13 @@ import {
 	FEYNMAN_VERSION,
 } from "./shared.js";
 
-function visibleLength(text: string): number {
-	return visibleWidth(text);
-}
-
 function formatHeaderPath(path: string): string {
 	const home = homedir();
 	return path.startsWith(home) ? `~${path.slice(home.length)}` : path;
 }
 
 function truncateVisible(text: string, maxVisible: number): string {
-	if (visibleWidth(text) <= maxVisible) return text;
-	return truncateToWidth(text, maxVisible, maxVisible <= 3 ? "" : "...");
+	return truncateToWidth(text, maxVisible, "...");
 }
 
 function wrapWords(text: string, maxW: number): string[] {
@@ -33,7 +28,7 @@ function wrapWords(text: string, maxW: number): string[] {
 	for (let word of words) {
 		if (visibleWidth(word) > maxW) {
 			if (cur) { lines.push(cur); cur = ""; }
-			word = truncateToWidth(word, maxW, maxW > 3 ? "…" : "");
+			word = truncateToWidth(word, maxW, "...");
 		}
 		const test = cur ? `${cur} ${word}` : word;
 		if (cur && visibleWidth(test) > maxW) {
@@ -48,16 +43,8 @@ function wrapWords(text: string, maxW: number): string[] {
 }
 
 function padRight(text: string, width: number): string {
-	const gap = Math.max(0, width - visibleLength(text));
+	const gap = Math.max(0, width - visibleWidth(text));
 	return `${text}${" ".repeat(gap)}`;
-}
-
-function centerText(text: string, width: number): string {
-	const textWidth = visibleWidth(text);
-	if (textWidth >= width) return truncateToWidth(text, width, "");
-	const left = Math.floor((width - textWidth) / 2);
-	const right = width - textWidth - left;
-	return `${" ".repeat(left)}${text}${" ".repeat(right)}`;
 }
 
 function getCurrentModelLabel(ctx: ExtensionContext): string {
@@ -228,7 +215,7 @@ export function installFeynmanHeader(
 
 				push("");
 				if (cardW >= 70) {
-					const maxLogoW = Math.max(...FEYNMAN_AGENT_LOGO.map((l) => l.length));
+					const maxLogoW = Math.max(...FEYNMAN_AGENT_LOGO.map((l) => visibleWidth(l)));
 					const logoOffset = " ".repeat(Math.max(0, Math.floor((cardW - maxLogoW) / 2)));
 					for (const logoLine of FEYNMAN_AGENT_LOGO) {
 						push(theme.fg("accent", theme.bold(`${logoOffset}${truncateVisible(logoLine, cardW)}`)));
@@ -237,7 +224,7 @@ export function installFeynmanHeader(
 				}
 
 				const versionTag = ` v${FEYNMAN_VERSION} `;
-				const gap = Math.max(0, innerW - versionTag.length);
+				const gap = Math.max(0, innerW - visibleWidth(versionTag));
 				const gapL = Math.floor(gap / 2);
 				push(
 					border(`╭${"─".repeat(gapL)}`) +
@@ -308,7 +295,7 @@ export function installFeynmanHeader(
 						let first = true;
 						for (const word of descWords) {
 							const test = line ? `${line} ${word}` : word;
-							if (line && test.length > descW) {
+							if (line && visibleWidth(test) > descW) {
 								rightLines.push(
 									first
 										? `${theme.fg("accent", wf.name.padEnd(cmdNameW))}${theme.fg("dim", line)}`

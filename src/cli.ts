@@ -13,6 +13,7 @@ import {
 } from "@companion-ai/alpha-hub/lib";
 import { DefaultPackageManager, SettingsManager } from "@mariozechner/pi-coding-agent";
 
+import { ensureBedrockProxy, stopBedrockProxy } from "./bedrock/proxy.js";
 import { syncBundledAssets } from "./bootstrap/sync.js";
 import { ensureFeynmanHome, getDefaultSessionDir, getFeynmanAgentDir, getFeynmanHome } from "./config/paths.js";
 import { launchPiChat } from "./pi/launch.js";
@@ -493,15 +494,21 @@ export async function main(): Promise<void> {
 		normalizeFeynmanSettings(feynmanSettingsPath, bundledSettingsPath, thinkingLevel, feynmanAuthPath);
 	}
 
-	await launchPiChat({
-		appRoot,
-		workingDir,
-		sessionDir,
-		feynmanAgentDir,
-		feynmanVersion,
-		thinkingLevel,
-		explicitModelSpec,
-		oneShotPrompt: values.prompt,
-		initialPrompt: resolveInitialPrompt(command, rest, values.prompt, new Set(readPromptSpecs(appRoot).filter((s) => s.topLevelCli).map((s) => s.name))),
-	});
+	await ensureBedrockProxy(appRoot);
+
+	try {
+		await launchPiChat({
+			appRoot,
+			workingDir,
+			sessionDir,
+			feynmanAgentDir,
+			feynmanVersion,
+			thinkingLevel,
+			explicitModelSpec,
+			oneShotPrompt: values.prompt,
+			initialPrompt: resolveInitialPrompt(command, rest, values.prompt, new Set(readPromptSpecs(appRoot).filter((s) => s.topLevelCli).map((s) => s.name))),
+		});
+	} finally {
+		stopBedrockProxy();
+	}
 }

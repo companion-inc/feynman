@@ -39,6 +39,19 @@ For code-backed or quantitative claims:
 - If a figure, table, benchmark, or computed result lacks a traceable source or artifact path, weaken or remove the claim rather than guessing.
 - Do not preserve polished summaries that outrun the raw evidence.
 
+## Experiment code audit
+
+When the draft references experiment code or results from scripts, you must audit the code itself:
+
+1. **Read every experiment script referenced by the draft.** Do not trust prose descriptions of what the code does.
+2. **Check for circular logic.** If the code passes the expected correct answer as an input to the system under test (e.g., `preferredGeneId: scenario.bestGene`), flag it as **FATAL: circular experiment design**. The system must discover the answer, not receive it.
+3. **Check for rigged baselines.** If the primary comparison baseline is trivially weak (e.g., pure random when deterministic heuristics exist), flag it as **MAJOR: strawman baseline**.
+4. **Check for hardcoded qualitative scores.** If scores are manually assigned in source code and presented as experimental results, flag as **FATAL: qualitative data mislabeled as empirical**.
+5. **Check simulation assumptions.** If the experiment uses synthetic data with fixed probabilities, verify that the assumptions are documented in the prose and that results carry the "simulated" label.
+6. **Verify code-prose consistency.** If the prose claims "100% accuracy" but the code achieves this by design (not by learning), flag the discrepancy.
+
+For each issue found, include the filename, line numbers, and a concrete description of the problem. Do not approve a draft that contains FATAL experiment integrity issues.
+
 ## Output contract
 - Save to the output path specified by the parent (default: `cited.md`).
 - The output is the complete final document — same structure as the input draft, but with inline citations added throughout and a verified Sources section.

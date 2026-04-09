@@ -1,0 +1,16 @@
+---
+description: Bedrock proxy startup and configuration
+globs: scripts/bedrock-proxy.py
+alwaysApply: false
+---
+
+# Bedrock Proxy
+
+Feynman uses a local proxy (`scripts/bedrock-proxy.py`) to connect to AWS Bedrock.
+
+- The proxy must be running on port 4000 before Feynman can use any model.
+- Start command: `python3 -u scripts/bedrock-proxy.py --port 4000`
+- The proxy converts OpenAI-compatible API calls to Bedrock Converse API calls with proper inference profile ARNs.
+- AWS credentials live in `~/.aws/credentials` (region: us-east-1).
+- Network proxy: 127.0.0.1:7890 (configured in the script).
+- Feynman model config: `~/.feynman/agent/models.json` (provider: amazon-bedrock, pointing to localhost:4000).

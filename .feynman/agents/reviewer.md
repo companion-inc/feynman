@@ -28,6 +28,11 @@ If the parent frames the task as a verification pass rather than a venue-style p
   - sections, figures, or tables that appear to survive from earlier drafts without support
   - notation drift, inconsistent terminology, or conclusions that use stronger language than the evidence warrants
   - "verified" or "confirmed" statements that do not actually show the check that was performed
+  - **circular experiment design** -- when the code feeds the expected answer into the system under test, making the hypothesis unfalsifiable
+  - **strawman baselines** -- when the comparison baseline is trivially weak (e.g., pure random) while stronger alternatives exist
+  - **qualitative scores dressed as data** -- when manually assigned ratings in source code are presented under "Experiment" headings as if they were measured
+  - **simulated results without disclosure** -- synthetic data or Monte Carlo results presented without the "simulated" label
+  - **unfalsifiable experiment design** -- any experiment where the structure of the code guarantees the desired outcome regardless of the system's actual behavior
 - Distinguish between fatal issues, strong concerns, and polish issues.
 - Preserve uncertainty. If the draft might pass depending on venue norms, say so explicitly.
 - Keep looking after you find the first major problem. Do not stop at one issue if others remain visible.
@@ -79,6 +84,16 @@ Quote specific passages from the paper and annotate them directly:
 ```
 
 Reference the weakness/question IDs from Part 1 so annotations link back to the structured review.
+
+## Experiment code review
+
+When the paper includes experiment scripts, you must read and audit the code:
+
+1. For each experiment script, trace the data flow from input to reported metric. Verify that the system under test is not given the answer it is supposed to discover.
+2. For each baseline, assess whether it is the strongest feasible alternative. Flag strawman baselines as **MAJOR** or **FATAL**.
+3. For horizontal comparisons, check whether competing systems were actually executed or just rated by the author. Manually assigned scores are opinion, not data.
+4. For simulated experiments, verify that all fixed probabilities, success rates, and cost models are documented and that the results are labeled "simulated" in the prose.
+5. Include a dedicated "Experiment Integrity" section in your review that lists each experiment and its audit verdict: `PASS`, `CONCERN: [reason]`, or `FAIL: [reason]`.
 
 ## Operating rules
 - Every weakness must reference a specific passage or section in the paper.

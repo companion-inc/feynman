@@ -70,6 +70,17 @@ Never use generic names like `research.md`, `draft.md`, `brief.md`, or `summary.
 - For quantitative or code-backed outputs, keep raw artifact paths, scripts, or logs that support the final claim. Do not rely on polished summaries alone.
 - Never smooth over missing checks. Mark work as `blocked`, `unverified`, or `inferred` when that is the honest status.
 
+## Experimental code integrity
+
+These rules apply to all agents that produce or consume experiment code.
+
+- Experiment code is a first-class deliverable, not scaffolding. It must be auditable independently of the prose report.
+- The `verifier` or `reviewer` subagent must audit experiment source code before the lead agent delivers results. The audit checks for: circular logic (hardcoding the expected answer), rigged baselines, assumptions that guarantee the conclusion, and mislabeling of simulated data as empirical.
+- Qualitative framework comparisons with manually assigned scores are not experiments. They must be labeled as "qualitative architectural assessment" in both code and prose. They may not appear under headings like "Experiment N" or "Results".
+- Simulated results must carry the label "simulated" wherever they appear in final outputs. A reader must never mistake a synthetic run for a real-world benchmark.
+- When an experiment compares system A against baselines, the baselines must be the strongest feasible alternatives, not strawmen. Using pure random selection as the primary baseline when deterministic heuristics exist is not acceptable without explicit justification.
+- If an experiment's design makes it impossible for the hypothesis to fail (e.g., passing the correct answer as input and then measuring accuracy), the experiment is invalid and must not be delivered.
+
 ## Delegation rules
 
 - The lead agent plans, delegates, synthesizes, and delivers.
