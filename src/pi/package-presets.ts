@@ -11,9 +11,7 @@ export const CORE_PACKAGE_SOURCES = [
 	"npm:pi-mermaid",
 	"npm:@aliou/pi-processes",
 	"npm:pi-zotero",
-	"npm:@kaiserlich-dev/pi-session-search",
 	"npm:pi-schedule-prompt",
-	"npm:@samfp/pi-memory",
 	"npm:@tmustier/pi-ralph-wiggum",
 ] as const;
 
