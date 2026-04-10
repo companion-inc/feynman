@@ -1,6 +1,6 @@
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
-import { resolve } from "node:path";
+import { dirname, resolve } from "node:path";
 import { getFeynmanHome } from "../config/paths.js";
 
 export type PiWebSearchProvider = "auto" | "perplexity" | "exa" | "gemini";
@@ -51,6 +51,28 @@ export function loadPiWebAccessConfig(configPath = getPiWebSearchConfigPath()): 
 	} catch {
 		return {};
 	}
+}
+
+// Write config updates to disk. Pass undefined for a key to delete it,
+// preserving all other existing keys (e.g. API keys when clearing a provider).
+export function savePiWebAccessConfig(
+	updates: Partial<Record<keyof PiWebAccessConfig, unknown>>,
+	configPath = getPiWebSearchConfigPath(),
+): void {
+	const existing: Record<string, unknown> = loadPiWebAccessConfig(configPath);
+	const merged: Record<string, unknown> = { ...existing };
+
+	for (const [key, value] of Object.entries(updates)) {
+		if (value === undefined) {
+			delete merged[key];
+		} else {
+			merged[key] = value;
+		}
+	}
+
+	const dir = dirname(configPath);
+	if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
+	writeFileSync(configPath, JSON.stringify(merged, null, 2) + "\n", "utf8");
 }
 
 function formatRouteLabel(provider: PiWebSearchProvider): string {

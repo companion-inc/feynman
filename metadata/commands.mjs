@@ -106,6 +106,8 @@ export const cliCommandSections = [
 			{ usage: "feynman packages list", description: "Show core and optional Pi package presets." },
 			{ usage: "feynman packages install <preset>", description: "Install optional package presets on demand." },
 			{ usage: "feynman search status", description: "Show Pi web-access status and config path." },
+			{ usage: "feynman search set <provider> [api-key]", description: "Set the web search provider (auto, perplexity, exa, gemini) and optionally its API key." },
+			{ usage: "feynman search clear", description: "Reset web search provider to auto." },
 			{ usage: "feynman update [package]", description: "Update installed packages, or a specific package." },
 		],
 	},
