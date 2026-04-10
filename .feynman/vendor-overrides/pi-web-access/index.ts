@@ -1,3 +1,6 @@
+// Vendor override for pi-web-access — last verified against pi-web-access@0.10.6.
+// If this file fails to load after a pi-web-access upgrade, check that all
+// imports below still exist in the installed package version.
 import type { ExtensionAPI, ExtensionContext } from "@mariozechner/pi-coding-agent";
 import { Box, Text, truncateToWidth } from "@mariozechner/pi-tui";
 import { Type } from "@sinclair/typebox";
@@ -28,12 +31,6 @@ import { join } from "node:path";
 import { isPerplexityAvailable } from "./perplexity.js";
 import { isGeminiApiAvailable } from "./gemini-api.js";
 import { getActiveGoogleEmail, isGeminiWebAvailable } from "./gemini-web.js";
-import {
-	condenseSearchResults,
-	postProcessCondensed,
-	preprocessSearchResults,
-	resolveCondenseConfig,
-} from "./search-filter.js";
 
 const WEB_SEARCH_CONFIG_PATH = join(homedir(), ".pi", "web-search.json");
 const DEFAULT_CURATE_WINDOW = 10;
@@ -113,7 +110,7 @@ let widgetUnsubscribe: (() => void) | null = null;
 let activeCurator: CuratorServerHandle | null = null;
 
 interface PendingCurate {
-	phase: "searching" | "curate-window" | "curating" | "condensing";
+	phase: "searching" | "curate-window" | "curating";
 	searchResults: Map<number, QueryResultData>;
 	allUrls: string[];
 	queryList: string[];
@@ -130,7 +127,6 @@ interface PendingCurate {
 	finish: (value: unknown) => void;
 	cancel: () => void;
 	browserPromise?: Promise<void>;
-	condensePromise?: Promise<string | null>;
 }
 
 let pendingCurate: PendingCurate | null = null;
@@ -383,42 +379,6 @@ export default function (pi: ExtensionAPI) {
 						error: r.error,
 					})),
 				} : {}),
-			},
-		};
-	}
-
-	function buildCondensedReturn(opts: {
-		condensed: string;
-		results: QueryResultData[];
-		urls: string[];
-		includeContent: boolean;
-	}) {
-		const sc = opts.results.filter(r => !r.error).length;
-		const tr = opts.results.reduce((sum, r) => sum + r.results.length, 0);
-		const queryList = opts.results.map(r => r.query);
-		const searchId = storeAndPublishSearch(opts.results);
-
-		let output = `[These results were condensed from ${queryList.length} search queries into key findings.`;
-		output += ` Full per-query results available via get_search_content with ID "${searchId}"`;
-		output += " (retrieve by query text or index).]\n\n";
-		output += opts.condensed;
-
-		const fetchId = opts.includeContent ? startBackgroundFetch(opts.urls) : null;
-		if (fetchId) output += `\n\n---\nContent fetching in background [${fetchId}]. Will notify when ready.`;
-
-		return {
-			content: [{ type: "text", text: output.trim() }],
-			details: {
-				queries: queryList,
-				queryCount: queryList.length,
-				successfulQueries: sc,
-				totalResults: tr,
-				includeContent: opts.includeContent,
-				fetchId,
-				fetchUrls: fetchId ? opts.urls : undefined,
-				searchId,
-				condensed: true,
-				condensedFrom: queryList.length,
 			},
 		};
 	}
@@ -732,86 +692,10 @@ export default function (pi: ExtensionAPI) {
 							details: { phase: "curating", progress: 1 },
 						});
 					}
-				} else if (curateWindow > 0 && isMultiQuery) {
-					pc.phase = "curate-window";
-					const totalSources = [...searchResults.values()].reduce((sum, r) => sum + r.results.length, 0);
-					let remaining = curateWindow;
-					const condenseConfig = resolveCondenseConfig(curateConfig.autoFilter);
-					const preprocessed = preprocessSearchResults(searchResults);
-					const allSources = [...searchResults.values()].flatMap(r => r.results);
-					let condenseResult: string | null | undefined;
-					const shouldCondense = !!condenseConfig && !preprocessed.skipCondensation;
-
-					if (shouldCondense) {
-						pc.condensePromise = condenseSearchResults(searchResults, condenseConfig, ctx, signal, params.context, preprocessed);
-						pc.condensePromise.then(text => {
-							condenseResult = text ? postProcessCondensed(text, allSources) : null;
-							if (!cancelled && remaining > 0 && pc.phase === "curate-window") {
-								pc.onUpdate?.(buildCountdownUpdate());
-							}
-						});
-					}
-
-					function buildCountdownUpdate() {
-						const condensing = shouldCondense && condenseResult === undefined;
-						const condensed = condenseResult !== undefined && condenseResult !== null;
-						let text: string;
-						if (condensed) {
-							text = `${searchResults.size} searches condensed · ${curateLabel} for all · sending in ${remaining}s`;
-						} else if (condensing) {
-							text = `${searchResults.size} searches (${totalSources} sources) · condensing... · ${curateLabel} to review · sending in ${remaining}s`;
-						} else {
-							text = `${searchResults.size} searches (${totalSources} sources) · ${curateLabel} to review · sending in ${remaining}s`;
-						}
-						return {
-							content: [{ type: "text", text }],
-							details: {
-								phase: "curate-window",
-								searchCount: searchResults.size,
-								sourceCount: totalSources,
-								remaining,
-								...(condensing ? { condensing: true } : {}),
-								...(condensed ? { condensed: true, condensedFrom: searchResults.size } : {}),
-							},
-						};
-					}
-
-					onUpdate?.(buildCountdownUpdate());
-
-					pc.countdownInterval = setInterval(() => {
-						if (cancelled) return;
-						remaining--;
-						if (remaining > 0) {
-							pc.onUpdate?.(buildCountdownUpdate());
-						}
-					}, 1000);
-
-					pc.timer = setTimeout(async () => {
-						if (cancelled) return;
-						if (pc.countdownInterval) clearInterval(pc.countdownInterval);
-
-						if (shouldCondense && condenseResult === undefined) {
-							pc.phase = "condensing";
-							pc.onUpdate?.({
-								content: [{ type: "text", text: "Condensing results..." }],
-								details: { phase: "condensing", progress: 1 },
-							});
-							await pc.condensePromise!;
-							if (cancelled) return;
-						}
-
-						if (condenseResult) {
-							finish(buildCondensedReturn({
-								condensed: condenseResult,
-								results: [...searchResults.values()],
-								urls: allUrls,
-								includeContent,
-							}));
-						} else {
-							cancel();
-						}
-					}, curateWindow * 1000);
 				} else {
+					// No browser curator open and no condensation path — pass results
+					// directly to the model. Aligns with pi-web-access@0.10.4+ behaviour
+					// where the auto-condense/countdown flow was removed upstream.
 					cancel();
 				}
 
