@@ -71,6 +71,26 @@ On Windows:
 & ([scriptblock]::Create((irm https://feynman.is/install.ps1))) -Version 0.2.17
 ```
 
+## Updating Feynman
+
+To upgrade the standalone Feynman app, rerun the installer for your platform. This refreshes the installed runtime bundle to the latest tagged release.
+
+On macOS or Linux:
+
+```bash
+curl -fsSL https://feynman.is/install | bash
+```
+
+On Windows:
+
+```powershell
+irm https://feynman.is/install.ps1 | iex
+```
+
+To upgrade to a specific release instead of the latest one, rerun the installer with an explicit version as shown above in [Pinned releases](#pinned-releases).
+
+The `feynman update` command is different: it updates installed Pi packages inside your Feynman environment. It does not replace the standalone Feynman runtime bundle itself.
+
 ## Post-install setup
 
 After installation, run the guided setup wizard to configure your model provider and API keys:

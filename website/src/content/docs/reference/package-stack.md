@@ -27,6 +27,8 @@ These are installed by default with every Feynman installation. They provide the
 
 These packages are updated together when you run `feynman update`. You do not need to install them individually.
 
+This package update flow is separate from upgrading the standalone Feynman app. To upgrade the app itself, rerun the installer from the [Installation](/docs/getting-started/installation) guide.
+
 ## Optional packages
 
 Install on demand with `feynman packages install <preset>`. These extend Feynman with capabilities that not every user needs.

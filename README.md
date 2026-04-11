@@ -29,6 +29,26 @@ The one-line installer fetches the latest tagged release. To pin a version, pass
 
 The installer downloads a standalone native bundle with its own Node.js runtime.
 
+### Updating
+
+To update the standalone Feynman app, rerun the installer for your platform:
+
+**macOS / Linux:**
+
+```bash
+curl -fsSL https://feynman.is/install | bash
+```
+
+**Windows (PowerShell):**
+
+```powershell
+irm https://feynman.is/install.ps1 | iex
+```
+
+That replaces the installed runtime with the latest tagged release. To upgrade to a specific version instead, pass the version explicitly to the installer.
+
+`feynman update` does **not** upgrade the standalone app itself. It updates the installed Pi packages inside your Feynman environment.
+
 Local models are supported through the custom-provider flow. For Ollama, run `feynman setup`, choose `Custom provider (baseUrl + API key)`, use `openai-completions`, and point it at `http://localhost:11434/v1`.
 
 ### Skills Only

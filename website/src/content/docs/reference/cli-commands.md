@@ -45,9 +45,11 @@ AlphaXiv authentication enables Feynman to search and retrieve papers, access di
 | --- | --- |
 | `feynman packages list` | List all available packages and their install status |
 | `feynman packages install <preset>` | Install an optional package preset |
-| `feynman update [package]` | Update installed packages, or a specific package by name |
+| `feynman update [package]` | Update installed Pi packages, or a specific package by name |
 
 Use `feynman packages list` to see which optional packages are available and which are already installed. The `all-extras` preset installs every optional package at once.
+
+`feynman update` updates the Pi packages inside your Feynman environment. It does not upgrade the standalone Feynman app itself. To upgrade the app, rerun the platform installer from the [Installation](/docs/getting-started/installation) guide.
 
 ## Utility commands
 
