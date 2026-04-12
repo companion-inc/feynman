@@ -528,6 +528,17 @@ function resolveAvailableModelSpec(authPath: string, input: string): string | un
 		return `${exactIdMatches[0]!.provider}/${exactIdMatches[0]!.id}`;
 	}
 
+	// When multiple providers expose the same model ID (e.g. github-copilot is always
+	// available regardless of auth), prefer providers the user has explicitly configured.
+	if (exactIdMatches.length > 1) {
+		const authData = readJson(authPath) as Record<string, unknown>;
+		const configuredProviders = new Set(Object.keys(authData));
+		const configuredMatches = exactIdMatches.filter((model) => configuredProviders.has(model.provider));
+		if (configuredMatches.length === 1) {
+			return `${configuredMatches[0]!.provider}/${configuredMatches[0]!.id}`;
+		}
+	}
+
 	return undefined;
 }
 
