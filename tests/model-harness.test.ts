@@ -6,7 +6,7 @@ import { join } from "node:path";
 
 import { resolveInitialPrompt } from "../src/cli.js";
 import { buildModelStatusSnapshotFromRecords, chooseRecommendedModel } from "../src/model/catalog.js";
-import { setDefaultModelSpec } from "../src/model/commands.js";
+import { resolveModelProviderForCommand, setDefaultModelSpec } from "../src/model/commands.js";
 
 function createAuthPath(contents: Record<string, unknown>): string {
 	const root = mkdtempSync(join(tmpdir(), "feynman-auth-"));
@@ -40,6 +40,40 @@ test("setDefaultModelSpec accepts a unique bare model id from authenticated mode
 	};
 	assert.equal(settings.defaultProvider, "openai");
 	assert.equal(settings.defaultModel, "gpt-5.4");
+});
+
+test("setDefaultModelSpec accepts provider:model syntax for authenticated models", () => {
+	const authPath = createAuthPath({
+		google: { type: "api_key", key: "google-test-key" },
+	});
+	const settingsPath = join(mkdtempSync(join(tmpdir(), "feynman-settings-")), "settings.json");
+
+	setDefaultModelSpec(settingsPath, authPath, "google:gemini-3-pro-preview");
+
+	const settings = JSON.parse(readFileSync(settingsPath, "utf8")) as {
+		defaultProvider?: string;
+		defaultModel?: string;
+	};
+	assert.equal(settings.defaultProvider, "google");
+	assert.equal(settings.defaultModel, "gemini-3-pro-preview");
+});
+
+test("resolveModelProviderForCommand falls back to API-key providers when OAuth is unavailable", () => {
+	const authPath = createAuthPath({});
+
+	const resolved = resolveModelProviderForCommand(authPath, "google");
+
+	assert.equal(resolved?.kind, "api-key");
+	assert.equal(resolved?.id, "google");
+});
+
+test("resolveModelProviderForCommand prefers OAuth when a provider supports both auth modes", () => {
+	const authPath = createAuthPath({});
+
+	const resolved = resolveModelProviderForCommand(authPath, "anthropic");
+
+	assert.equal(resolved?.kind, "oauth");
+	assert.equal(resolved?.id, "anthropic");
 });
 
 test("buildModelStatusSnapshotFromRecords flags an invalid current model and suggests a replacement", () => {

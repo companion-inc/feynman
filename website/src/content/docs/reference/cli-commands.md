@@ -23,11 +23,11 @@ This page covers the dedicated Feynman CLI commands and flags. Workflow commands
 | Command | Description |
 | --- | --- |
 | `feynman model list` | List available models in Pi auth storage |
-| `feynman model login [id]` | Login to a Pi OAuth model provider |
-| `feynman model logout [id]` | Logout from a Pi OAuth model provider |
-| `feynman model set <provider:model>` | Set the default model for all sessions |
+| `feynman model login [id]` | Authenticate a model provider with OAuth or API-key setup |
+| `feynman model logout [id]` | Clear stored auth for a model provider |
+| `feynman model set <provider/model>` | Set the default model for all sessions |
 
-These commands manage your model provider configuration. The `model set` command updates `~/.feynman/settings.json` with the new default. The format is `provider:model-name`, for example `anthropic:claude-sonnet-4-20250514`.
+These commands manage your model provider configuration. The `model set` command updates `~/.feynman/settings.json` with the new default. It accepts either `provider/model-name` or `provider:model-name`, for example `anthropic/claude-sonnet-4-20250514` or `anthropic:claude-sonnet-4-20250514`. When you run `feynman model login google` or another API-key provider, Feynman switches into the API-key setup flow automatically instead of requiring the interactive picker.
 
 ## AlphaXiv commands
 

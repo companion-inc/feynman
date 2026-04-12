@@ -86,9 +86,9 @@ export const cliCommandSections = [
 		title: "Model Management",
 		commands: [
 			{ usage: "feynman model list", description: "List available models in Pi auth storage." },
-			{ usage: "feynman model login [id]", description: "Login to a Pi OAuth model provider." },
-			{ usage: "feynman model logout [id]", description: "Logout from a Pi OAuth model provider." },
-			{ usage: "feynman model set <provider/model>", description: "Set the default model." },
+			{ usage: "feynman model login [id]", description: "Authenticate a model provider with OAuth or API-key setup." },
+			{ usage: "feynman model logout [id]", description: "Clear stored auth for a model provider." },
+			{ usage: "feynman model set <provider/model>", description: "Set the default model (also accepts provider:model)." },
 			{ usage: "feynman model tier [value]", description: "View or set the request service tier override." },
 		],
 	},

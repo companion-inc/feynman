@@ -91,6 +91,31 @@ const API_KEY_PROVIDERS: ApiKeyProviderInfo[] = [
 	{ id: "azure-openai-responses", label: "Azure OpenAI (Responses)", envVar: "AZURE_OPENAI_API_KEY" },
 ];
 
+function resolveApiKeyProvider(input: string): ApiKeyProviderInfo | undefined {
+	const normalizedInput = normalizeProviderId(input);
+	if (!normalizedInput) {
+		return undefined;
+	}
+	return API_KEY_PROVIDERS.find((provider) => provider.id === normalizedInput);
+}
+
+export function resolveModelProviderForCommand(
+	authPath: string,
+	input: string,
+): { kind: "oauth" | "api-key"; id: string } | undefined {
+	const oauthProvider = resolveOAuthProvider(authPath, input);
+	if (oauthProvider) {
+		return { kind: "oauth", id: oauthProvider.id };
+	}
+
+	const apiKeyProvider = resolveApiKeyProvider(input);
+	if (apiKeyProvider) {
+		return { kind: "api-key", id: apiKeyProvider.id };
+	}
+
+	return undefined;
+}
+
 async function selectApiKeyProvider(): Promise<ApiKeyProviderInfo | undefined> {
 	const choices = API_KEY_PROVIDERS.map(
 		(provider) => `${provider.id} — ${provider.label}${provider.envVar ? ` (${provider.envVar})` : ""}`,
@@ -447,9 +472,29 @@ async function verifyCustomProvider(setup: CustomProviderSetup, authPath: string
 	printInfo("Verification: skipped network probe for this API mode.");
 }
 
-async function configureApiKeyProvider(authPath: string): Promise<boolean> {
-	const provider = await selectApiKeyProvider();
+function maybeSetRecommendedDefaultModel(settingsPath: string | undefined, authPath: string): void {
+	if (!settingsPath) {
+		return;
+	}
+
+	const currentSpec = getCurrentModelSpec(settingsPath);
+	const available = getAvailableModelRecords(authPath);
+	const currentValid = currentSpec ? available.some((m) => `${m.provider}/${m.id}` === currentSpec) : false;
+
+	if ((!currentSpec || !currentValid) && available.length > 0) {
+		const recommended = chooseRecommendedModel(authPath);
+		if (recommended) {
+			setDefaultModelSpec(settingsPath, authPath, recommended.spec);
+		}
+	}
+}
+
+async function configureApiKeyProvider(authPath: string, providerId?: string): Promise<boolean> {
+	const provider = providerId ? resolveApiKeyProvider(providerId) : await selectApiKeyProvider();
 	if (!provider) {
+		if (providerId) {
+			throw new Error(`Unknown API-key model provider: ${providerId}`);
+		}
 		printInfo("API key setup cancelled.");
 		return false;
 	}
@@ -512,7 +557,7 @@ async function configureApiKeyProvider(authPath: string): Promise<boolean> {
 }
 
 function resolveAvailableModelSpec(authPath: string, input: string): string | undefined {
-	const normalizedInput = input.trim().toLowerCase();
+	const normalizedInput = input.trim().replace(/^([^/:]+):(.+)$/, "$1/$2").toLowerCase();
 	if (!normalizedInput) {
 		return undefined;
 	}
@@ -574,16 +619,8 @@ export async function authenticateModelProvider(authPath: string, settingsPath?:
 
 	if (selection === 0) {
 		const configured = await configureApiKeyProvider(authPath);
-		if (configured && settingsPath) {
-			const currentSpec = getCurrentModelSpec(settingsPath);
-			const available = getAvailableModelRecords(authPath);
-			const currentValid = currentSpec ? available.some((m) => `${m.provider}/${m.id}` === currentSpec) : false;
-			if ((!currentSpec || !currentValid) && available.length > 0) {
-				const recommended = chooseRecommendedModel(authPath);
-				if (recommended) {
-					setDefaultModelSpec(settingsPath, authPath, recommended.spec);
-				}
-			}
+		if (configured) {
+			maybeSetRecommendedDefaultModel(settingsPath, authPath);
 		}
 		return configured;
 	}
@@ -597,10 +634,24 @@ export async function authenticateModelProvider(authPath: string, settingsPath?:
 }
 
 export async function loginModelProvider(authPath: string, providerId?: string, settingsPath?: string): Promise<boolean> {
+	if (providerId) {
+		const resolvedProvider = resolveModelProviderForCommand(authPath, providerId);
+		if (!resolvedProvider) {
+			throw new Error(`Unknown model provider: ${providerId}`);
+		}
+		if (resolvedProvider.kind === "api-key") {
+			const configured = await configureApiKeyProvider(authPath, resolvedProvider.id);
+			if (configured) {
+				maybeSetRecommendedDefaultModel(settingsPath, authPath);
+			}
+			return configured;
+		}
+	}
+
 	const provider = providerId ? resolveOAuthProvider(authPath, providerId) : await selectOAuthProvider(authPath, "login");
 	if (!provider) {
 		if (providerId) {
-			throw new Error(`Unknown OAuth model provider: ${providerId}`);
+			throw new Error(`Unknown model provider: ${providerId}`);
 		}
 		printInfo("Login cancelled.");
 		return false;
@@ -637,35 +688,38 @@ export async function loginModelProvider(authPath: string, providerId?: string, 
 
 	printSuccess(`Model provider login complete: ${provider.id}`);
 
-	if (settingsPath) {
-		const currentSpec = getCurrentModelSpec(settingsPath);
-		const available = getAvailableModelRecords(authPath);
-		const currentValid = currentSpec
-			? available.some((m) => `${m.provider}/${m.id}` === currentSpec)
-			: false;
-
-		if ((!currentSpec || !currentValid) && available.length > 0) {
-			const recommended = chooseRecommendedModel(authPath);
-			if (recommended) {
-				setDefaultModelSpec(settingsPath, authPath, recommended.spec);
-			}
-		}
-	}
+	maybeSetRecommendedDefaultModel(settingsPath, authPath);
 
 	return true;
 }
 
 export async function logoutModelProvider(authPath: string, providerId?: string): Promise<void> {
-	const provider = providerId ? resolveOAuthProvider(authPath, providerId) : await selectOAuthProvider(authPath, "logout");
-	if (!provider) {
-		if (providerId) {
-			throw new Error(`Unknown OAuth model provider: ${providerId}`);
+	const authStorage = AuthStorage.create(authPath);
+	if (providerId) {
+		const resolvedProvider = resolveModelProviderForCommand(authPath, providerId);
+		if (resolvedProvider) {
+			authStorage.logout(resolvedProvider.id);
+			printSuccess(`Model provider logout complete: ${resolvedProvider.id}`);
+			return;
 		}
+
+		const normalizedProviderId = normalizeProviderId(providerId);
+		if (authStorage.has(normalizedProviderId)) {
+			authStorage.logout(normalizedProviderId);
+			printSuccess(`Model provider logout complete: ${normalizedProviderId}`);
+			return;
+		}
+
+		throw new Error(`Unknown model provider: ${providerId}`);
+	}
+
+	const provider = await selectOAuthProvider(authPath, "logout");
+	if (!provider) {
 		printInfo("Logout cancelled.");
 		return;
 	}
 
-	AuthStorage.create(authPath).logout(provider.id);
+	authStorage.logout(provider.id);
 	printSuccess(`Model provider logout complete: ${provider.id}`);
 }
 
