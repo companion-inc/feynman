@@ -17,7 +17,7 @@ import { syncBundledAssets } from "./bootstrap/sync.js";
 import { ensureFeynmanHome, getDefaultSessionDir, getFeynmanAgentDir, getFeynmanHome } from "./config/paths.js";
 import { launchPiChat } from "./pi/launch.js";
 import { CORE_PACKAGE_SOURCES, getOptionalPackagePresetSources, listOptionalPackagePresets } from "./pi/package-presets.js";
-import { normalizeFeynmanSettings, normalizeThinkingLevel, parseModelSpec } from "./pi/settings.js";
+import { normalizeFeynmanSettings, normalizeThinkingLevel, parseModelSpec, readJson } from "./pi/settings.js";
 import { applyFeynmanPackageManagerEnv } from "./pi/runtime.js";
 import { getConfiguredServiceTier, normalizeServiceTier, setConfiguredServiceTier } from "./model/service-tier.js";
 import {
@@ -514,6 +514,20 @@ export async function main(): Promise<void> {
 		normalizeFeynmanSettings(feynmanSettingsPath, bundledSettingsPath, thinkingLevel, feynmanAuthPath);
 	}
 
+	const feynmanSettings = readJson(feynmanSettingsPath);
+	const bedrockSettings = feynmanSettings.bedrock;
+	const bedrockConfig =
+		bedrockSettings !== null && typeof bedrockSettings === "object" && !Array.isArray(bedrockSettings)
+			? {
+					profile: typeof (bedrockSettings as Record<string, unknown>).profile === "string"
+						? ((bedrockSettings as Record<string, unknown>).profile as string)
+						: undefined,
+					region: typeof (bedrockSettings as Record<string, unknown>).region === "string"
+						? ((bedrockSettings as Record<string, unknown>).region as string)
+						: undefined,
+				}
+			: undefined;
+
 	await launchPiChat({
 		appRoot,
 		workingDir,
@@ -523,6 +537,7 @@ export async function main(): Promise<void> {
 		mode,
 		thinkingLevel,
 		explicitModelSpec,
+		bedrockConfig,
 		oneShotPrompt: values.prompt,
 		initialPrompt: resolveInitialPrompt(command, rest, values.prompt, new Set(readPromptSpecs(appRoot).filter((s) => s.topLevelCli).map((s) => s.name))),
 	});

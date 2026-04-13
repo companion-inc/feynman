@@ -20,6 +20,7 @@ export type PiRuntimeOptions = {
 	explicitModelSpec?: string;
 	oneShotPrompt?: string;
 	initialPrompt?: string;
+	bedrockConfig?: { profile?: string; region?: string };
 };
 
 export function getFeynmanNpmPrefixPath(feynmanAgentDir: string): string {
@@ -112,7 +113,7 @@ export function buildPiEnv(options: PiRuntimeOptions): NodeJS.ProcessEnv {
 	const binEntries = [paths.nodeModulesBinPath, resolve(paths.piWorkspaceNodeModulesPath, ".bin"), feynmanNpmBinPath];
 	const binPath = binEntries.join(delimiter);
 
-	return {
+	const env: NodeJS.ProcessEnv = {
 		...process.env,
 		PATH: `${binPath}${delimiter}${currentPath}`,
 		FEYNMAN_VERSION: options.feynmanVersion,
@@ -136,4 +137,14 @@ export function buildPiEnv(options: PiRuntimeOptions): NodeJS.ProcessEnv {
 		NPM_CONFIG_PREFIX: feynmanNpmPrefixPath,
 		npm_config_prefix: feynmanNpmPrefixPath,
 	};
+
+	// Inject Bedrock profile/region only when not already set in the shell environment.
+	if (options.bedrockConfig?.profile && !process.env.AWS_PROFILE) {
+		env.AWS_PROFILE = options.bedrockConfig.profile;
+	}
+	if (options.bedrockConfig?.region && !process.env.AWS_REGION) {
+		env.AWS_REGION = options.bedrockConfig.region;
+	}
+
+	return env;
 }

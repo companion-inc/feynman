@@ -50,7 +50,26 @@ For Amazon Bedrock, choose:
 Amazon Bedrock (AWS credential chain)
 ```
 
-Feynman verifies the same AWS credential chain Pi uses at runtime, including `AWS_PROFILE`, `~/.aws` credentials/config, SSO, ECS/IRSA, and EC2 instance roles. Once that check passes, Bedrock models become available in `feynman model list` without needing a traditional API key.
+Feynman reads `~/.aws/config` and presents a numbered list of your named profiles:
+
+```
+? Select an AWS profile:
+  default
+  my-work-profile
+  prod-readonly
+  Use environment variables instead
+  Cancel
+```
+
+Select a profile to verify credentials via `~/.aws/credentials` or `~/.aws/config` (including SSO, ECS/IRSA, and EC2 instance roles). If no `~/.aws/config` exists or you prefer to supply credentials directly, choose **Use environment variables instead** — Feynman will verify `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` from your shell environment.
+
+If the chosen profile's config already specifies a `region`, or if `AWS_REGION`/`AWS_DEFAULT_REGION` is set, the region is resolved silently. Otherwise you are prompted:
+
+```
+AWS region (e.g. us-east-1) [us-east-1]:
+```
+
+On success, the chosen profile and region are saved to `~/.feynman/settings.json` under a `bedrock` key and injected as `AWS_PROFILE`/`AWS_REGION` into the Pi child process on every launch. Bedrock models then appear in `feynman model list` without a traditional API key.
 
 ### Local models: Ollama, LM Studio, vLLM
 

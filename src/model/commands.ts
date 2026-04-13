@@ -1,7 +1,12 @@
 import { AuthStorage } from "@mariozechner/pi-coding-agent";
-import { writeFileSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { exec as execCallback } from "node:child_process";
+import { homedir } from "node:os";
+import { resolve } from "node:path";
 import { promisify } from "node:util";
+
+import { fromEnv } from "@aws-sdk/credential-provider-env";
+import { fromIni } from "@aws-sdk/credential-provider-ini";
 
 import { readJson } from "../pi/settings.js";
 import { promptChoice, promptText } from "../setup/prompts.js";
@@ -473,33 +478,143 @@ async function verifyCustomProvider(setup: CustomProviderSetup, authPath: string
 	printInfo("Verification: skipped network probe for this API mode.");
 }
 
-async function verifyBedrockCredentialChain(): Promise<void> {
-	const { defaultProvider } = await import("@aws-sdk/credential-provider-node");
-	const credentials = await defaultProvider({})();
+/**
+ * Parse profile names from ~/.aws/config.
+ * Returns names for [default] and [profile <name>] sections.
+ */
+function parseAwsProfiles(): string[] {
+	const configPath = resolve(homedir(), ".aws", "config");
+	if (!existsSync(configPath)) {
+		return [];
+	}
+	try {
+		const content = readFileSync(configPath, "utf8");
+		const profiles: string[] = [];
+		for (const line of content.split("\n")) {
+			const trimmed = line.trim();
+			// [default] section
+			if (trimmed === "[default]") {
+				profiles.push("default");
+				continue;
+			}
+			// [profile <name>] sections
+			const match = /^\[profile\s+(.+?)\]$/.exec(trimmed);
+			if (match?.[1]) {
+				profiles.push(match[1].trim());
+			}
+		}
+		return profiles;
+	} catch {
+		return [];
+	}
+}
+
+/**
+ * Resolve the AWS region for a given profile.
+ * Checks the profile's section in ~/.aws/config, then env vars.
+ */
+function resolveBedrockRegion(profile: string | undefined): string | undefined {
+	// Check env vars first (they take precedence over config file for resolution)
+	if (process.env.AWS_REGION) return process.env.AWS_REGION;
+	if (process.env.AWS_DEFAULT_REGION) return process.env.AWS_DEFAULT_REGION;
+
+	// Try to read from ~/.aws/config
+	if (profile) {
+		const configPath = resolve(homedir(), ".aws", "config");
+		if (existsSync(configPath)) {
+			try {
+				const content = readFileSync(configPath, "utf8");
+				const sectionHeader = profile === "default" ? "[default]" : `[profile ${profile}]`;
+				let inSection = false;
+				for (const line of content.split("\n")) {
+					const trimmed = line.trim();
+					if (trimmed === sectionHeader) {
+						inSection = true;
+						continue;
+					}
+					if (inSection) {
+						if (trimmed.startsWith("[")) break; // next section
+						const regionMatch = /^region\s*=\s*(.+)$/.exec(trimmed);
+						if (regionMatch?.[1]) {
+							return regionMatch[1].trim();
+						}
+					}
+				}
+			} catch {
+				// ignore
+			}
+		}
+	}
+
+	return undefined;
+}
+
+/**
+ * Persist bedrock profile + region into settings.json under the `bedrock` key.
+ */
+function saveBedrockConfig(settingsPath: string, profile: string | undefined, region: string): void {
+	const settings = readJson(settingsPath);
+	const bedrock: Record<string, string> = { region };
+	if (profile) {
+		bedrock.profile = profile;
+	}
+	settings.bedrock = bedrock;
+	writeFileSync(settingsPath, JSON.stringify(settings, null, 2) + "\n", "utf8");
+}
+
+async function verifyBedrockCredentialChain(profile: string | undefined): Promise<void> {
+	const credentials = profile !== undefined
+		? await fromIni({ profile })()
+		: await fromEnv()();
 	if (!credentials?.accessKeyId || !credentials?.secretAccessKey) {
 		throw new Error("AWS credential chain resolved without usable Bedrock credentials.");
 	}
 }
 
-async function configureBedrockProvider(authPath: string): Promise<boolean> {
+async function configureBedrockProvider(authPath: string, settingsPath: string): Promise<boolean> {
 	printSection("AWS Credentials: Amazon Bedrock");
-	printInfo("Feynman will verify the AWS SDK credential chain used by Pi's Bedrock provider.");
-	printInfo("Supported sources include AWS_PROFILE, ~/.aws credentials/config, SSO, ECS/IRSA, and EC2 instance roles.");
+
+	const profiles = parseAwsProfiles();
+	let chosenProfile: string | undefined;
+
+	if (profiles.length > 0) {
+		const choices = [...profiles, "Use environment variables instead", "Cancel"];
+		const selection = await promptChoice("Select an AWS profile:", choices, 0);
+		if (selection >= profiles.length + 1) {
+			// Cancel
+			printInfo("Bedrock setup cancelled.");
+			return false;
+		}
+		if (selection < profiles.length) {
+			chosenProfile = profiles[selection];
+		}
+		// selection === profiles.length → env-var path, chosenProfile stays undefined
+	}
+	// If no profiles found, go directly to env-var path (chosenProfile stays undefined)
 
 	try {
-		await verifyBedrockCredentialChain();
-		AuthStorage.create(authPath).set("amazon-bedrock", { type: "api_key", key: "<authenticated>" });
-		printSuccess("Verified AWS credential chain and marked Amazon Bedrock as configured.");
-		printInfo("Use `feynman model list` to see available Bedrock models.");
-		return true;
+		await verifyBedrockCredentialChain(chosenProfile);
 	} catch (error) {
 		printWarning(`AWS credential verification failed: ${error instanceof Error ? error.message : String(error)}`);
-		printInfo("Configure AWS credentials first, for example:");
-		printInfo("  export AWS_PROFILE=default");
-		printInfo("  # or set AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY");
-		printInfo("  # or use an EC2/ECS/IRSA role with valid Bedrock access");
+		if (chosenProfile) {
+			printInfo(`Ensure profile "${chosenProfile}" has valid credentials in ~/.aws/credentials or ~/.aws/config.`);
+		} else {
+			printInfo("Set AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY in your environment.");
+		}
 		return false;
 	}
+
+	// Resolve region; prompt only if not already known
+	let region = resolveBedrockRegion(chosenProfile);
+	if (!region) {
+		region = await promptText("AWS region (e.g. us-east-1)", "us-east-1");
+	}
+
+	saveBedrockConfig(settingsPath, chosenProfile, region);
+	AuthStorage.create(authPath).set("amazon-bedrock", { type: "api_key", key: "<authenticated>" });
+	printSuccess("Verified AWS credentials and marked Amazon Bedrock as configured.");
+	printInfo("Use `feynman model list` to see available Bedrock models.");
+	return true;
 }
 
 function maybeSetRecommendedDefaultModel(settingsPath: string | undefined, authPath: string): void {
@@ -519,7 +634,7 @@ function maybeSetRecommendedDefaultModel(settingsPath: string | undefined, authP
 	}
 }
 
-async function configureApiKeyProvider(authPath: string, providerId?: string): Promise<boolean> {
+async function configureApiKeyProvider(authPath: string, providerId?: string, settingsPath?: string): Promise<boolean> {
 	const provider = providerId ? resolveApiKeyProvider(providerId) : await selectApiKeyProvider();
 	if (!provider) {
 		if (providerId) {
@@ -530,7 +645,10 @@ async function configureApiKeyProvider(authPath: string, providerId?: string): P
 	}
 
 	if (provider.id === "amazon-bedrock") {
-		return configureBedrockProvider(authPath);
+		if (!settingsPath) {
+			throw new Error("settingsPath is required for Amazon Bedrock configuration.");
+		}
+		return configureBedrockProvider(authPath, settingsPath);
 	}
 
 	if (provider.id === "__custom__") {
@@ -663,7 +781,7 @@ export async function authenticateModelProvider(authPath: string, settingsPath?:
 	const selection = await promptChoice("How do you want to authenticate?", choices, 0);
 
 	if (selection === 0) {
-		const configured = await configureApiKeyProvider(authPath);
+		const configured = await configureApiKeyProvider(authPath, undefined, settingsPath);
 		if (configured) {
 			maybeSetRecommendedDefaultModel(settingsPath, authPath);
 		}
@@ -685,7 +803,7 @@ export async function loginModelProvider(authPath: string, providerId?: string, 
 			throw new Error(`Unknown model provider: ${providerId}`);
 		}
 		if (resolvedProvider.kind === "api-key") {
-			const configured = await configureApiKeyProvider(authPath, resolvedProvider.id);
+			const configured = await configureApiKeyProvider(authPath, resolvedProvider.id, settingsPath);
 			if (configured) {
 				maybeSetRecommendedDefaultModel(settingsPath, authPath);
 			}
@@ -794,7 +912,7 @@ export async function runModelSetup(settingsPath: string, authPath: string): Pro
 		];
 		const selection = await promptChoice("Choose how to configure model access:", choices, 0);
 		if (selection === 0) {
-			const configured = await configureApiKeyProvider(authPath);
+			const configured = await configureApiKeyProvider(authPath, undefined, settingsPath);
 			if (!configured) {
 				status = collectModelStatus(settingsPath, authPath);
 				continue;

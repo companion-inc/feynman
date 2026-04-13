@@ -28,6 +28,22 @@ The `settings.json` file is the primary configuration file. It is created by `fe
 }
 ```
 
+When Amazon Bedrock is configured, a `bedrock` key is added:
+
+```json
+{
+  "defaultProvider": "amazon-bedrock",
+  "defaultModel": "amazon-bedrock/...",
+  "defaultThinkingLevel": "medium",
+  "bedrock": {
+    "profile": "my-work-profile",
+    "region": "us-east-1"
+  }
+}
+```
+
+`profile` is omitted when the env-var path was chosen during setup. Feynman injects these values as `AWS_PROFILE` and `AWS_REGION` into the Pi child process on every launch, but only when those variables are not already set in your shell — shell environment always takes precedence.
+
 ## Model configuration
 
 The `defaultProvider` and `defaultModel` fields set which model is used when you launch Feynman without the `--model` flag. You can change them via the CLI:
@@ -58,7 +74,7 @@ Then switch the default model:
 feynman model set anthropic/claude-opus-4-6
 ```
 
-The `model set` command accepts both `provider/model` and `provider:model` formats. `feynman model login google` opens the API-key flow directly, while `feynman model login amazon-bedrock` verifies the AWS credential chain that Pi uses for Bedrock access.
+The `model set` command accepts both `provider/model` and `provider:model` formats. `feynman model login google` opens the API-key flow directly. `feynman model login amazon-bedrock` reads `~/.aws/config`, presents a profile picker, verifies credentials, and saves the chosen profile and region to `settings.json` so they are injected into the Pi child process on every launch.
 
 ## Subagent model overrides
 
@@ -95,7 +111,10 @@ Feynman respects the following environment variables, which take precedence over
 | `ANTHROPIC_API_KEY` | Anthropic API key |
 | `OPENAI_API_KEY` | OpenAI API key |
 | `GEMINI_API_KEY` | Google Gemini API key |
-| `AWS_PROFILE` | Preferred AWS profile for Amazon Bedrock |
+| `AWS_PROFILE` | AWS profile for Amazon Bedrock (overrides `settings.json`) |
+| `AWS_REGION` | AWS region for Amazon Bedrock (overrides `settings.json`) |
+| `AWS_ACCESS_KEY_ID` | AWS access key ID (used when no profile is configured) |
+| `AWS_SECRET_ACCESS_KEY` | AWS secret access key (used when no profile is configured) |
 | `TAVILY_API_KEY` | Tavily web search API key |
 | `SERPER_API_KEY` | Serper web search API key |
 
