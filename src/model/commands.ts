@@ -406,6 +406,71 @@ async function promptLmStudioProviderSetup(): Promise<CustomProviderSetup | unde
 	};
 }
 
+async function promptLiteLlmProviderSetup(): Promise<CustomProviderSetup | undefined> {
+	printSection("LiteLLM Proxy");
+	printInfo("Ensure the LiteLLM proxy is running before continuing.");
+
+	const baseUrlRaw = await promptText("Base URL", "http://localhost:4000/v1");
+	const { baseUrl } = normalizeCustomProviderBaseUrl("openai-completions", baseUrlRaw);
+	if (!baseUrl) {
+		printWarning("Base URL is required.");
+		return undefined;
+	}
+
+	const keyChoices = [
+		"Yes — master key is configured (Authorization: Bearer <key>)",
+		"No — proxy runs without authentication",
+		"Cancel",
+	];
+	const keySelection = await promptChoice("Is the proxy protected by a master key?", keyChoices, 0);
+	if (keySelection >= 2) {
+		return undefined;
+	}
+	const hasKey = keySelection === 0;
+
+	let apiKeyConfig: string;
+	let authHeader: boolean;
+
+	if (hasKey) {
+		printInfo("The API key value is resolved from the LITELLM_MASTER_KEY env var at runtime.");
+		printInfo("Set LITELLM_MASTER_KEY in your shell or .env before using feynman.");
+		apiKeyConfig = "LITELLM_MASTER_KEY";
+		authHeader = true;
+	} else {
+		apiKeyConfig = "local";
+		authHeader = false;
+	}
+
+	// Best-effort model discovery — resolvedKey is used only for this fetch, never written to disk
+	const resolvedKey = hasKey ? (await resolveApiKeyConfig(apiKeyConfig)) ?? apiKeyConfig : apiKeyConfig;
+	const detectedModelIds = await bestEffortFetchOpenAiModelIds(baseUrl, resolvedKey, authHeader);
+
+	let modelIdsDefault = "gpt-4";
+	if (detectedModelIds && detectedModelIds.length > 0) {
+		const sample = detectedModelIds.slice(0, 10).join(", ");
+		printInfo(`Detected LiteLLM models: ${sample}${detectedModelIds.length > 10 ? ", ..." : ""}`);
+		modelIdsDefault = detectedModelIds[0]!;
+	} else {
+		printInfo("No models detected from /models. Enter the model id(s) shown in your LiteLLM proxy config.");
+	}
+
+	const modelIdsRaw = await promptText("Model id(s) (comma-separated)", modelIdsDefault);
+	const modelIds = normalizeModelIds(modelIdsRaw);
+	if (modelIds.length === 0) {
+		printWarning("At least one model id is required.");
+		return undefined;
+	}
+
+	return {
+		providerId: "litellm",
+		modelIds,
+		baseUrl,
+		api: "openai-completions",
+		apiKeyConfig,
+		authHeader,
+	};
+}
+
 async function verifyCustomProvider(setup: CustomProviderSetup, authPath: string): Promise<void> {
 	const registry = createModelRegistry(authPath);
 	const modelsError = registry.getError();
@@ -613,6 +678,31 @@ async function configureApiKeyProvider(authPath: string, providerId?: string): P
 		}
 
 		printSuccess("Saved LM Studio provider.");
+		await verifyCustomProvider(setup, authPath);
+		return true;
+	}
+
+	if (provider.id === "litellm") {
+		const setup = await promptLiteLlmProviderSetup();
+		if (!setup) {
+			printInfo("LiteLLM setup cancelled.");
+			return false;
+		}
+
+		const modelsJsonPath = getModelsJsonPath(authPath);
+		const result = upsertProviderConfig(modelsJsonPath, setup.providerId, {
+			baseUrl: setup.baseUrl,
+			apiKey: setup.apiKeyConfig,
+			api: setup.api,
+			authHeader: setup.authHeader,
+			models: setup.modelIds.map((id) => ({ id })),
+		});
+		if (!result.ok) {
+			printWarning(result.error);
+			return false;
+		}
+
+		printSuccess("Saved LiteLLM provider.");
 		await verifyCustomProvider(setup, authPath);
 		return true;
 	}
