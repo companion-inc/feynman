@@ -84,6 +84,7 @@ const API_KEY_PROVIDERS: ApiKeyProviderInfo[] = [
 	{ id: "anthropic", label: "Anthropic API", envVar: "ANTHROPIC_API_KEY" },
 	{ id: "google", label: "Google Gemini API", envVar: "GEMINI_API_KEY" },
 	{ id: "lm-studio", label: "LM Studio (local OpenAI-compatible server)" },
+	{ id: "litellm", label: "LiteLLM Proxy (local OpenAI-compatible gateway)" },
 	{ id: "__custom__", label: "Custom provider (local/self-hosted/proxy)" },
 	{ id: "amazon-bedrock", label: "Amazon Bedrock (AWS credential chain)" },
 	{ id: "openrouter", label: "OpenRouter", envVar: "OPENROUTER_API_KEY" },
@@ -135,6 +136,8 @@ async function selectApiKeyProvider(): Promise<ApiKeyProviderInfo | undefined> {
 			? "Ollama, vLLM, LM Studio, proxies"
 			: provider.id === "lm-studio"
 				? "http://localhost:1234/v1"
+			: provider.id === "litellm"
+				? "http://localhost:4000/v1"
 			: provider.envVar ?? provider.id,
 	}));
 	options.push({ value: "cancel", label: "Cancel" });
