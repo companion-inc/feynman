@@ -48,7 +48,7 @@ const PROVIDER_LABELS: Record<string, string> = {
 	huggingface: "Hugging Face",
 	"amazon-bedrock": "Amazon Bedrock",
 	"azure-openai-responses": "Azure OpenAI Responses",
-	"litellm": "LiteLLM Proxy",
+	litellm: "LiteLLM Proxy",
 };
 
 const RESEARCH_MODEL_PREFERENCES = [
