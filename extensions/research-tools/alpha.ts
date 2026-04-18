@@ -10,6 +10,8 @@ import {
 import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
 import { Type } from "@sinclair/typebox";
 
+import { extractPaperSections } from "./alpha-sections.js";
+
 function formatText(value: unknown): string {
 	if (typeof value === "string") return value;
 	return JSON.stringify(value, null, 2);
@@ -36,14 +38,38 @@ export function registerAlphaTools(pi: ExtensionAPI): void {
 	pi.registerTool({
 		name: "alpha_get_paper",
 		label: "Alpha Get Paper",
-		description: "Fetch a paper's AI-generated report (or raw full text) plus any local annotation.",
+		description:
+			"Fetch a paper's AI-generated report (or raw full text) plus any local annotation. Optional section filters return only requested sections when detectable.",
 		parameters: Type.Object({
 			paper: Type.String({ description: "arXiv ID, arXiv URL, or alphaXiv URL." }),
 			fullText: Type.Optional(Type.Boolean({ description: "Return raw full text instead of AI report." })),
+			section: Type.Optional(
+				Type.String({
+					description:
+						"Single section to extract from content: abstract, introduction, methodology, experiments, results, discussion, limitations, or conclusion.",
+				}),
+			),
+			sections: Type.Optional(
+				Type.Array(
+					Type.String({
+						description:
+							"Multiple sections to extract from content. Supported values: abstract, introduction, methodology, experiments, results, discussion, limitations, conclusion.",
+					}),
+				),
+			),
 		}),
 		async execute(_toolCallId, params) {
 			const result = await getPaper(params.paper, { fullText: params.fullText });
-			return { content: [{ type: "text", text: formatText(result) }], details: result };
+			const extracted = extractPaperSections(result.content, params.section, params.sections);
+			const filteredResult = extracted.requested.length
+				? {
+						...result,
+						content: Object.keys(extracted.selected).length > 0 ? extracted.selected : result.content,
+						requestedSections: extracted.requested,
+						missingSections: extracted.missing,
+				  }
+				: result;
+			return { content: [{ type: "text", text: formatText(filteredResult) }], details: filteredResult };
 		},
 	});
 
