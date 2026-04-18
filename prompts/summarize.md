@@ -1,6 +1,6 @@
 ---
 description: Summarize any URL, local file, or PDF using the RLM pattern — source stored on disk, never injected raw into context.
-args: <source>
+args: <source> [--window-size <chars>] [--overlap <chars>] [--tier1-threshold <chars>] [--tier2-threshold <chars>]
 section: Research Workflows
 topLevelCli: true
 ---
@@ -12,7 +12,21 @@ Derive a short slug from the source filename or URL domain (lowercase, hyphens, 
 
 Standard summarization injects the full document into context. Above ~15k tokens, early content degrades as the window fills (context rot). This workflow keeps the document on disk as an external variable and reads only bounded windows — so context pressure is proportional to the window size, not the document size.
 
-Tier 1 (< 8k chars) is a deliberate exception: direct injection is safe at ~2k tokens and windowed reading would add unnecessary friction.
+Tier 1 (below the Tier-1 threshold) is a deliberate exception: direct injection is safe for short inputs and windowed reading would add unnecessary friction.
+
+## Runtime knobs (context-window controls)
+
+Support both inline flags and environment variables so users can tune context-window behavior per run or globally.
+
+- `--window-size <chars>` or `FEYNMAN_SUMMARIZE_WINDOW_CHARS` (default: `6000`)
+- `--overlap <chars>` or `FEYNMAN_SUMMARIZE_OVERLAP_CHARS` (default: `500`)
+- `--tier1-threshold <chars>` or `FEYNMAN_SUMMARIZE_TIER1_THRESHOLD` (default: `8000`)
+- `--tier2-threshold <chars>` or `FEYNMAN_SUMMARIZE_TIER2_THRESHOLD` (default: `60000`)
+
+Rules:
+- Inline flags override environment variables.
+- Validate `window-size > overlap` and `tier1-threshold < tier2-threshold`; if invalid, stop and report a clear configuration error.
+- Log resolved values once per run: `[summarize] config window=<w> overlap=<o> tier1=<t1> tier2=<t2>`.
 
 ---
 
@@ -35,9 +49,9 @@ Measure decoded text characters (not bytes — UTF-8 multi-byte chars would over
 
 | Chars | Tier | Strategy |
 |---|---|---|
-| < 8 000 | 1 | Direct read — full content enters context (safe at ~2k tokens) |
-| 8 000 – 60 000 | 2 | RLM-lite — windowed bash extraction, progressive notes to disk |
-| > 60 000 | 3 | Full RLM — bash chunking + parallel researcher subagents |
+| < `<tier1-threshold>` | 1 | Direct read — full content enters context (safe for short inputs) |
+| `<tier1-threshold>` – `<tier2-threshold>` | 2 | RLM-lite — windowed bash extraction, progressive notes to disk |
+| > `<tier2-threshold>` | 3 | Full RLM — bash chunking + parallel researcher subagents |
 
 Log: `[summarize] tier=<N> chars=<count>`
 
@@ -51,14 +65,14 @@ Read `outputs/.notes/<slug>-raw.txt` in full. Summarize directly using the outpu
 
 ## Tier 2 — RLM-lite windowed read
 
-The document stays on disk. Extract 6 000-char windows via bash:
+The document stays on disk. Extract `<window-size>`-char windows via bash:
 
 ```python
 # WHY f.seek/f.read: the read tool uses line offsets, not char offsets.
 # For exact char-boundary windowing across arbitrary text, bash is required.
 with open("outputs/.notes/<slug>-raw.txt", encoding="utf-8") as f:
-    f.seek(n * 6000)
-    window = f.read(6000)
+    f.seek(n * <window-size>)
+    window = f.read(<window-size>)
 ```
 
 For each window:
@@ -72,9 +86,9 @@ Synthesize `outputs/.notes/<slug>-notes.md` into `outputs/<slug>-summary.md`.
 
 ## Tier 3 — Full RLM parallel chunks
 
-Each chunk gets a fresh researcher subagent context window — context rot is impossible because no subagent sees more than 6 000 chars.
+Each chunk gets a fresh researcher subagent context window — context rot is impossible because no subagent sees more than `<window-size>` chars.
 
-WHY 500-char overlap: academic papers contain multi-sentence arguments that span chunk boundaries. 500 chars (~80 words) ensures a cross-boundary claim appears fully in at least one adjacent chunk.
+WHY overlap matters: academic papers contain multi-sentence arguments that span chunk boundaries. The configured overlap ensures a cross-boundary claim appears fully in at least one adjacent chunk.
 
 ### 3a. Chunk the document
 
@@ -85,7 +99,7 @@ os.makedirs("outputs/.notes", exist_ok=True)
 with open("outputs/.notes/<slug>-raw.txt", encoding="utf-8") as f:
     text = f.read()
 
-chunk_size, overlap = 6000, 500
+chunk_size, overlap = <window-size>, <overlap>
 chunks, i = [], 0
 while i < len(text):
     chunks.append(text[i : i + chunk_size])
