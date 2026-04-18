@@ -6,6 +6,7 @@ import test from "node:test";
 
 import {
 	CORE_PACKAGE_SOURCES,
+	filterPackageSourcesForCurrentNode,
 	getOptionalPackagePresetSources,
 	NATIVE_PACKAGE_SOURCES,
 	shouldPruneLegacyDefaultPackages,
@@ -39,7 +40,7 @@ test("normalizeFeynmanSettings seeds the fast core package set", () => {
 	normalizeFeynmanSettings(settingsPath, bundledSettingsPath, "medium", authPath);
 
 	const settings = JSON.parse(readFileSync(settingsPath, "utf8")) as { packages?: string[] };
-	assert.deepEqual(settings.packages, [...CORE_PACKAGE_SOURCES]);
+	assert.deepEqual(settings.packages, filterPackageSourcesForCurrentNode(CORE_PACKAGE_SOURCES));
 });
 
 test("normalizeFeynmanSettings prunes the legacy slow default package set", () => {
@@ -68,7 +69,7 @@ test("normalizeFeynmanSettings prunes the legacy slow default package set", () =
 	normalizeFeynmanSettings(settingsPath, bundledSettingsPath, "medium", authPath);
 
 	const settings = JSON.parse(readFileSync(settingsPath, "utf8")) as { packages?: string[] };
-	assert.deepEqual(settings.packages, [...CORE_PACKAGE_SOURCES]);
+	assert.deepEqual(settings.packages, filterPackageSourcesForCurrentNode(CORE_PACKAGE_SOURCES));
 });
 
 test("optional package presets map friendly aliases", () => {
@@ -78,7 +79,10 @@ test("optional package presets map friendly aliases", () => {
 	assert.equal(shouldPruneLegacyDefaultPackages(["npm:custom"]), false);
 });
 
-test("supportsNativePackageSources disables sqlite-backed packages on Node 25+", () => {
+test("supportsNativePackageSources enables sqlite-backed packages only on Node 22-24", () => {
+	assert.equal(supportsNativePackageSources("20.20.2"), false);
+	assert.equal(supportsNativePackageSources("21.7.3"), false);
+	assert.equal(supportsNativePackageSources("22.0.0"), true);
 	assert.equal(supportsNativePackageSources("24.8.0"), true);
 	assert.equal(supportsNativePackageSources("25.0.0"), false);
 });

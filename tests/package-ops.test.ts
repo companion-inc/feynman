@@ -159,7 +159,7 @@ test("installPackageSources filters noisy npm chatter but preserves meaningful o
 	assert.doesNotMatch(combined, /npm fund/);
 });
 
-test("installPackageSources skips native packages on unsupported Node majors before invoking npm", async () => {
+test("installPackageSources skips native packages when node:sqlite is unavailable", async () => {
 	const root = mkdtempSync(join(tmpdir(), "feynman-package-ops-"));
 	const workingDir = resolve(root, "project");
 	const agentDir = resolve(root, "agent");
@@ -177,7 +177,7 @@ test("installPackageSources skips native packages on unsupported Node majors bef
 	});
 
 	const originalVersion = process.versions.node;
-	Object.defineProperty(process.versions, "node", { value: "25.0.0", configurable: true });
+	Object.defineProperty(process.versions, "node", { value: "20.20.2", configurable: true });
 	try {
 		const result = await installPackageSources(workingDir, agentDir, ["npm:@kaiserlich-dev/pi-session-search"]);
 		assert.deepEqual(result.installed, []);
@@ -279,7 +279,7 @@ test("updateConfiguredPackages batches multiple npm updates into a single instal
 	assert.ok(invocations[0]?.includes("test-two@latest"));
 });
 
-test("updateConfiguredPackages skips native package updates on unsupported Node majors", async () => {
+test("updateConfiguredPackages skips native package updates when node:sqlite is unavailable", async () => {
 	const root = mkdtempSync(join(tmpdir(), "feynman-package-ops-"));
 	const workingDir = resolve(root, "project");
 	const agentDir = resolve(root, "agent");
@@ -315,7 +315,7 @@ test("updateConfiguredPackages skips native package updates on unsupported Node 
 		ok: true,
 		json: async () => ({ version: "2.0.0" }),
 	})) as unknown as typeof fetch;
-	Object.defineProperty(process.versions, "node", { value: "25.0.0", configurable: true });
+	Object.defineProperty(process.versions, "node", { value: "20.20.2", configurable: true });
 
 	try {
 		const result = await updateConfiguredPackages(workingDir, agentDir);

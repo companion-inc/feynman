@@ -22,6 +22,7 @@ export const NATIVE_PACKAGE_SOURCES = [
 	"npm:@samfp/pi-memory",
 ] as const;
 
+export const MIN_NATIVE_PACKAGE_NODE_MAJOR = 22;
 export const MAX_NATIVE_PACKAGE_NODE_MAJOR = 24;
 
 export const OPTIONAL_PACKAGE_PRESETS = {
@@ -63,7 +64,8 @@ function parseNodeMajor(version: string): number {
 }
 
 export function supportsNativePackageSources(version = process.versions.node): boolean {
-	return parseNodeMajor(version) <= MAX_NATIVE_PACKAGE_NODE_MAJOR;
+	const major = parseNodeMajor(version);
+	return major >= MIN_NATIVE_PACKAGE_NODE_MAJOR && major <= MAX_NATIVE_PACKAGE_NODE_MAJOR;
 }
 
 export function filterPackageSourcesForCurrentNode<T extends string>(sources: readonly T[], version = process.versions.node): T[] {
