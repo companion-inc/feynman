@@ -27,6 +27,7 @@ AlphaXiv gives Feynman access to several capabilities that power the research wo
 
 - **Paper search** -- Find papers by topic, author, keyword, or arXiv ID (`alpha search`)
 - **Full-text retrieval** -- Download and parse complete PDFs for in-depth reading (`alpha get`)
+- **Section-focused extraction (agent tool)** -- In-agent `alpha_get_paper` supports `section` / `sections` filters for abstract/introduction/methodology/experiments/results/discussion/limitations/conclusion when available
 - **Paper Q&A** -- Ask targeted questions about a paper's content (`alpha ask`)
 - **Code inspection** -- Read files from a paper's linked GitHub repository (`alpha code`)
 - **Annotations** -- Persistent local notes on papers across sessions (`alpha annotate`)
