@@ -13,8 +13,8 @@ const PROVIDER_API_KEY_FIELDS: Partial<Record<PiWebSearchProvider, keyof PiWebAc
 	gemini: "geminiApiKey",
 };
 
-export function printSearchStatus(): void {
-	const status = getPiWebAccessStatus();
+export function printSearchStatus(status = getPiWebAccessStatus()): void {
+	const configPathSuffix = status.configExists ? "" : " (not created yet)";
 	printInfo("Managed by: pi-web-access");
 	printInfo(`Search route: ${status.routeLabel}`);
 	printInfo(`Request route: ${status.requestProvider}`);
@@ -23,7 +23,14 @@ export function printSearchStatus(): void {
 	printInfo(`Exa API configured: ${status.exaConfigured ? "yes" : "no"}`);
 	printInfo(`Gemini API configured: ${status.geminiApiConfigured ? "yes" : "no"}`);
 	printInfo(`Browser profile: ${status.chromeProfile ?? "default Chromium profile"}`);
-	printInfo(`Config path: ${status.configPath}`);
+	printInfo(`Config path: ${status.configPath}${configPathSuffix}`);
+	if (!status.configExists) {
+		printInfo("Not configured yet. Run one of:");
+		printInfo("  feynman search set auto");
+		printInfo("  feynman search set perplexity <api-key>");
+		printInfo("  feynman search set exa <api-key>");
+		printInfo("  feynman search set gemini <api-key>");
+	}
 }
 
 export function setSearchProvider(provider: PiWebSearchProvider, apiKey?: string): void {

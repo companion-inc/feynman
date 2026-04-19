@@ -118,3 +118,52 @@ test("formatPiWebAccessDoctorLines reports Pi-managed web access", () => {
 	assert.ok(lines.some((line) => line.includes("search workflow: none")));
 	assert.ok(lines.some((line) => line.includes("/tmp/pi-web-search.json")));
 });
+
+test("getPiWebAccessStatus flags configExists: false when web-search.json is missing", () => {
+	const root = mkdtempSync(join(tmpdir(), "feynman-pi-web-"));
+	const configPath = getPiWebSearchConfigPath(root);
+
+	const status = getPiWebAccessStatus(loadPiWebAccessConfig(configPath), configPath);
+	assert.equal(status.configExists, false);
+});
+
+test("getPiWebAccessStatus flags configExists: true after web-search.json is written", () => {
+	const root = mkdtempSync(join(tmpdir(), "feynman-pi-web-"));
+	const configPath = getPiWebSearchConfigPath(root);
+	savePiWebAccessConfig({ provider: "auto", searchProvider: "auto" }, configPath);
+
+	const status = getPiWebAccessStatus(loadPiWebAccessConfig(configPath), configPath);
+	assert.equal(status.configExists, true);
+});
+
+test("formatPiWebAccessDoctorLines marks missing config path and includes a setup hint", () => {
+	const root = mkdtempSync(join(tmpdir(), "feynman-pi-web-"));
+	const configPath = getPiWebSearchConfigPath(root);
+
+	const lines = formatPiWebAccessDoctorLines(
+		getPiWebAccessStatus(loadPiWebAccessConfig(configPath), configPath),
+	);
+
+	const configLine = lines.find((line) => line.includes("config path:"));
+	assert.ok(configLine, "expected a config path line");
+	assert.ok(configLine!.includes("(not created yet)"), `expected '(not created yet)' marker, got: ${configLine}`);
+	assert.ok(
+		lines.some((line) => line.includes("hint:") && line.includes("feynman search set")),
+		"expected a hint line pointing to `feynman search set`",
+	);
+});
+
+test("formatPiWebAccessDoctorLines omits marker and hint when config exists", () => {
+	const root = mkdtempSync(join(tmpdir(), "feynman-pi-web-"));
+	const configPath = getPiWebSearchConfigPath(root);
+	savePiWebAccessConfig({ provider: "auto", searchProvider: "auto" }, configPath);
+
+	const lines = formatPiWebAccessDoctorLines(
+		getPiWebAccessStatus(loadPiWebAccessConfig(configPath), configPath),
+	);
+
+	const configLine = lines.find((line) => line.includes("config path:"));
+	assert.ok(configLine, "expected a config path line");
+	assert.ok(!configLine!.includes("(not created yet)"), `did not expect '(not created yet)' marker: ${configLine}`);
+	assert.ok(!lines.some((line) => line.includes("hint:")), "did not expect a hint line when config exists");
+});

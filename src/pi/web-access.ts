@@ -18,6 +18,7 @@ export type PiWebAccessConfig = Record<string, unknown> & {
 
 export type PiWebAccessStatus = {
 	configPath: string;
+	configExists: boolean;
 	searchProvider: PiWebSearchProvider;
 	requestProvider: PiWebSearchProvider;
 	workflow: PiWebSearchWorkflow;
@@ -118,6 +119,7 @@ export function getPiWebAccessStatus(
 
 	return {
 		configPath,
+		configExists: existsSync(configPath),
 		searchProvider,
 		requestProvider,
 		workflow,
@@ -133,7 +135,8 @@ export function getPiWebAccessStatus(
 export function formatPiWebAccessDoctorLines(
 	status: PiWebAccessStatus = getPiWebAccessStatus(),
 ): string[] {
-	return [
+	const configPathSuffix = status.configExists ? "" : " (not created yet)";
+	const lines = [
 		"web access: pi-web-access",
 		`  search route: ${status.routeLabel}`,
 		`  request route: ${status.requestProvider}`,
@@ -142,7 +145,11 @@ export function formatPiWebAccessDoctorLines(
 		`  exa api: ${status.exaConfigured ? "configured" : "not configured"}`,
 		`  gemini api: ${status.geminiApiConfigured ? "configured" : "not configured"}`,
 		`  browser profile: ${status.chromeProfile ?? "default Chromium profile"}`,
-		`  config path: ${status.configPath}`,
+		`  config path: ${status.configPath}${configPathSuffix}`,
 		`  note: ${status.note}`,
 	];
+	if (!status.configExists) {
+		lines.push("  hint: run `feynman search set <auto|perplexity|exa|gemini> [api-key]` to configure web search");
+	}
+	return lines;
 }
