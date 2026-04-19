@@ -49,6 +49,10 @@ export async function launchPiChat(options: PiRuntimeOptions): Promise<void> {
 		process.stdout.write("\x1b[2J\x1b[3J\x1b[H");
 	}
 
+	if (options.preLaunchNotice) {
+		process.stdout.write(`${options.preLaunchNotice}\n`);
+	}
+
 	const wrapperPath = useBuiltWrapper ? piCliWrapperPath : piCliWrapperSourcePath;
 	const importArgs = useDevPolyfill
 		? ["--import", toNodeImportSpecifier(tsxLoaderPath), "--import", toNodeImportSpecifier(promisePolyfillSourcePath)]

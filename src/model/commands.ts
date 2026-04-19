@@ -1,5 +1,5 @@
 import { AuthStorage } from "@mariozechner/pi-coding-agent";
-import { writeFileSync } from "node:fs";
+import { readFileSync, writeFileSync } from "node:fs";
 import { exec as execCallback } from "node:child_process";
 import { promisify } from "node:util";
 
@@ -206,6 +206,26 @@ function normalizeCustomProviderBaseUrl(
 
 function isLocalBaseUrl(baseUrl: string): boolean {
 	return /^(https?:\/\/)?(localhost|127\.0\.0\.1|0\.0\.0\.0)(:|\/|$)/i.test(baseUrl);
+}
+
+const LOCAL_PROVIDER_IDS = new Set(["ollama", "lm-studio", "vllm", "llama-cpp", "llamacpp"]);
+
+export function isLocalModelProvider(authPath: string, providerId: string): boolean {
+	if (!providerId) {
+		return false;
+	}
+	if (LOCAL_PROVIDER_IDS.has(providerId)) {
+		return true;
+	}
+	try {
+		const raw = readFileSync(getModelsJsonPath(authPath), "utf8");
+		const parsed = JSON.parse(raw) as { providers?: Record<string, { baseUrl?: unknown }> };
+		const provider = parsed?.providers?.[providerId];
+		if (provider && typeof provider.baseUrl === "string" && isLocalBaseUrl(provider.baseUrl)) {
+			return true;
+		}
+	} catch {}
+	return false;
 }
 
 async function resolveApiKeyConfig(apiKeyConfig: string): Promise<string | undefined> {

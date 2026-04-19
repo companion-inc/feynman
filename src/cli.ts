@@ -33,6 +33,7 @@ import { getConfiguredServiceTier, normalizeServiceTier, setConfiguredServiceTie
 import {
 	authenticateModelProvider,
 	getCurrentModelSpec,
+	isLocalModelProvider,
 	loginModelProvider,
 	logoutModelProvider,
 	printModelList,
@@ -415,6 +416,12 @@ export function resolvePiPromptOptions(
 	return { initialPrompt: resolvedPrompt };
 }
 
+export function buildLocalModelWorkflowNotice(modelSpec: string, workflowName: string): string {
+	const WARN = "\x1b[33m";
+	const RESET_CODE = "\x1b[0m";
+	return `${WARN}⚠ ${modelSpec} is a local provider. Small local models often ignore /${workflowName}'s multi-step workflow and return a chat-only reply with no artifacts under outputs/. If this run produces no files, switch to a stronger model with \`feynman model set <provider/model>\`.${RESET_CODE}`;
+}
+
 export function appendWorkflowFlagPositionals(
 	command: string | undefined,
 	rest: string[],
@@ -672,6 +679,18 @@ export async function main(): Promise<void> {
 	const workflowCommandNames = new Set(readPromptSpecs(appRoot).filter((s) => s.topLevelCli).map((s) => s.name));
 	const workflowRest = appendWorkflowFlagPositionals(command, rest, values);
 	const promptOptions = resolvePiPromptOptions(command, workflowRest, values.prompt, workflowCommandNames);
+
+	let preLaunchNotice: string | undefined;
+	if (command && workflowCommandNames.has(command)) {
+		const effectiveSpec = explicitModelSpec ?? getCurrentModelSpec(feynmanSettingsPath);
+		if (effectiveSpec) {
+			const providerId = effectiveSpec.split("/")[0] ?? "";
+			if (isLocalModelProvider(feynmanAuthPath, providerId)) {
+				preLaunchNotice = buildLocalModelWorkflowNotice(effectiveSpec, command);
+			}
+		}
+	}
+
 	await launchPiChat({
 		appRoot,
 		workingDir,
@@ -681,6 +700,7 @@ export async function main(): Promise<void> {
 		mode,
 		thinkingLevel: launchThinkingLevel,
 		explicitModelSpec,
+		preLaunchNotice,
 		...promptOptions,
 	});
 }

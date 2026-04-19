@@ -21,6 +21,7 @@ export type PiRuntimeOptions = {
 	explicitModelSpec?: string;
 	oneShotPrompt?: string;
 	initialPrompt?: string;
+	preLaunchNotice?: string;
 };
 
 export function getFeynmanNpmPrefixPath(feynmanAgentDir: string): string {

@@ -4,9 +4,9 @@ import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import { appendWorkflowFlagPositionals, resolveInitialPrompt, resolvePiPromptOptions, resolveThinkingConfig, shouldRunInteractiveSetup } from "../src/cli.js";
+import { appendWorkflowFlagPositionals, buildLocalModelWorkflowNotice, resolveInitialPrompt, resolvePiPromptOptions, resolveThinkingConfig, shouldRunInteractiveSetup } from "../src/cli.js";
 import { buildModelStatusSnapshotFromRecords, chooseRecommendedModel, getAvailableModelRecords } from "../src/model/catalog.js";
-import { resolveModelProviderForCommand, setDefaultModelSpec } from "../src/model/commands.js";
+import { isLocalModelProvider, resolveModelProviderForCommand, setDefaultModelSpec } from "../src/model/commands.js";
 import { createModelRegistry } from "../src/model/registry.js";
 
 function createAuthPath(contents: Record<string, unknown>): string {
@@ -297,4 +297,38 @@ test("shouldRunInteractiveSetup skips onboarding for explicit model overrides or
 
 	assert.equal(shouldRunInteractiveSetup("openai/gpt-5.4", undefined, true, authPath), false);
 	assert.equal(shouldRunInteractiveSetup(undefined, undefined, false, authPath), false);
+});
+
+test("isLocalModelProvider flags known local provider ids without consulting models.json", () => {
+	const authPath = createAuthPath({});
+	assert.equal(isLocalModelProvider(authPath, "ollama"), true);
+	assert.equal(isLocalModelProvider(authPath, "lm-studio"), true);
+	assert.equal(isLocalModelProvider(authPath, "vllm"), true);
+	assert.equal(isLocalModelProvider(authPath, "anthropic"), false);
+	assert.equal(isLocalModelProvider(authPath, ""), false);
+});
+
+test("isLocalModelProvider flags custom providers whose models.json baseUrl points at localhost", () => {
+	const authPath = createAuthPath({});
+	const modelsJsonPath = join(authPath, "..", "models.json");
+	writeFileSync(
+		modelsJsonPath,
+		JSON.stringify({
+			providers: {
+				"my-proxy": { baseUrl: "http://127.0.0.1:8000/v1" },
+				openrouter: { baseUrl: "https://openrouter.ai/api/v1" },
+			},
+		}) + "\n",
+		"utf8",
+	);
+
+	assert.equal(isLocalModelProvider(authPath, "my-proxy"), true);
+	assert.equal(isLocalModelProvider(authPath, "openrouter"), false);
+});
+
+test("buildLocalModelWorkflowNotice names the configured model and the workflow", () => {
+	const notice = buildLocalModelWorkflowNotice("ollama/gemma4:latest", "deepresearch");
+	assert.ok(notice.includes("ollama/gemma4:latest"));
+	assert.ok(notice.includes("/deepresearch"));
+	assert.ok(notice.includes("feynman model set"));
 });
