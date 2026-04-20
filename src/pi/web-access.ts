@@ -14,6 +14,7 @@ export type PiWebAccessConfig = Record<string, unknown> & {
 	exaApiKey?: string;
 	geminiApiKey?: string;
 	chromeProfile?: string;
+	allowBrowserCookies?: boolean;
 };
 
 export type PiWebAccessStatus = {
@@ -26,6 +27,7 @@ export type PiWebAccessStatus = {
 	exaConfigured: boolean;
 	geminiApiConfigured: boolean;
 	chromeProfile?: string;
+	allowBrowserCookies: boolean;
 	routeLabel: string;
 	note: string;
 };
@@ -115,6 +117,7 @@ export function getPiWebAccessStatus(
 	const exaConfigured = Boolean(normalizeNonEmptyString(config.exaApiKey));
 	const geminiApiConfigured = Boolean(normalizeNonEmptyString(config.geminiApiKey));
 	const chromeProfile = normalizeNonEmptyString(config.chromeProfile);
+	const allowBrowserCookies = config.allowBrowserCookies === true;
 	const effectiveProvider = searchProvider;
 
 	return {
@@ -127,6 +130,7 @@ export function getPiWebAccessStatus(
 		exaConfigured,
 		geminiApiConfigured,
 		chromeProfile,
+		allowBrowserCookies,
 		routeLabel: formatRouteLabel(effectiveProvider),
 		note: formatRouteNote(effectiveProvider),
 	};
@@ -144,6 +148,7 @@ export function formatPiWebAccessDoctorLines(
 		`  perplexity api: ${status.perplexityConfigured ? "configured" : "not configured"}`,
 		`  exa api: ${status.exaConfigured ? "configured" : "not configured"}`,
 		`  gemini api: ${status.geminiApiConfigured ? "configured" : "not configured"}`,
+		`  browser cookies: ${status.allowBrowserCookies ? "allowed" : "disabled (set allowBrowserCookies: true to enable)"}`,
 		`  browser profile: ${status.chromeProfile ?? "default Chromium profile"}`,
 		`  config path: ${status.configPath}${configPathSuffix}`,
 		`  note: ${status.note}`,

@@ -22,7 +22,7 @@ export function printSearchStatus(status = getPiWebAccessStatus()): void {
 	printInfo(`Perplexity API configured: ${status.perplexityConfigured ? "yes" : "no"}`);
 	printInfo(`Exa API configured: ${status.exaConfigured ? "yes" : "no"}`);
 	printInfo(`Gemini API configured: ${status.geminiApiConfigured ? "yes" : "no"}`);
-	printInfo(`Browser profile: ${status.chromeProfile ?? "default Chromium profile"}`);
+	printInfo(`Browser cookies: ${status.allowBrowserCookies ? "allowed" : "disabled"}`);
 	printInfo(`Config path: ${status.configPath}${configPathSuffix}`);
 	if (!status.configExists) {
 		printInfo("Not configured yet. Run one of:");
