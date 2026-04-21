@@ -72,3 +72,19 @@ test("upsertProviderConfig writes LiteLLM proxy config without master key", () =
 	assert.equal(parsed.providers.litellm.authHeader, false);
 	assert.deepEqual(parsed.providers.litellm.models, [{ id: "llama3" }]);
 });
+
+test("upsertProviderConfig rejects provider ids with path traversal chars", () => {
+	const dir = mkdtempSync(join(tmpdir(), "feynman-models-"));
+	const modelsPath = join(dir, "models.json");
+
+	const withDots = upsertProviderConfig(modelsPath, "../etc/passwd", {
+		baseUrl: "http://localhost:11434/v1",
+	});
+	assert.equal(withDots.ok, false);
+	assert.ok(withDots.ok === false && "error" in withDots);
+
+	const withSlash = upsertProviderConfig(modelsPath, "foo/bar", {
+		baseUrl: "http://localhost:11434/v1",
+	});
+	assert.equal(withSlash.ok, false);
+});

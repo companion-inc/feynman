@@ -1,6 +1,18 @@
 import { chmodSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
 
+const UNSAFE_PROVIDER_ID = /[./\\]/;
+
+function validateProviderId(providerId: string): { ok: true } | { ok: false; error: string } {
+	if (!providerId || typeof providerId !== "string") {
+		return { ok: false, error: "provider id must be a non-empty string" };
+	}
+	if (UNSAFE_PROVIDER_ID.test(providerId)) {
+		return { ok: false, error: `provider id "${providerId}" contains unsafe characters (dots or slashes)` };
+	}
+	return { ok: true };
+}
+
 type ModelsJson = {
 	providers?: Record<string, Record<string, unknown>>;
 };
@@ -50,6 +62,11 @@ export function upsertProviderConfig(
 	providerId: string,
 	patch: ProviderConfigPatch,
 ): { ok: true } | { ok: false; error: string } {
+	const idCheck = validateProviderId(providerId);
+	if (!idCheck.ok) {
+		return idCheck;
+	}
+
 	const loaded = readModelsJson(modelsJsonPath);
 	if (!loaded.ok) {
 		return loaded;
