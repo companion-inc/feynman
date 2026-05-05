@@ -43,3 +43,5 @@ The literature review produces:
 ## When to use it
 
 Use `/lit` when you need a map of the research landscape rather than a deep dive into a specific question. It is particularly useful at the start of a new research project when you need to understand what has already been done, or when preparing a related work section for a paper.
+
+For biomedical and clinical research topics, see [Biomedical Literature Review](/docs/workflows/biomedical-literature-review) for research-only framing, evidence-type separation, and privacy boundaries.
