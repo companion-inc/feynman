@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { mkdtempSync, mkdirSync, writeFileSync } from "node:fs";
+import { mkdtempSync, mkdirSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -41,6 +41,18 @@ test("savePiWebAccessConfig merges updates and deletes undefined values", () => 
 	assert.deepEqual(loadPiWebAccessConfig(configPath), {
 		perplexityApiKey: "pplx_...",
 	});
+});
+
+test("savePiWebAccessConfig restricts web-search.json permissions", { skip: process.platform === "win32" }, () => {
+	const root = mkdtempSync(join(tmpdir(), "feynman-pi-web-"));
+	const configPath = getPiWebSearchConfigPath(root);
+
+	savePiWebAccessConfig({
+		searchProvider: "exa",
+		exaApiKey: "exa_secret",
+	}, configPath);
+
+	assert.equal(statSync(configPath).mode & 0o777, 0o600);
 });
 
 test("getPiWebAccessStatus reads Pi web-access config directly", () => {

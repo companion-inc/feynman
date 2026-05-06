@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { chmodSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { getFeynmanHome } from "../config/paths.js";
 
@@ -86,6 +86,12 @@ export function savePiWebAccessConfig(
 
 	mkdirSync(dirname(configPath), { recursive: true });
 	writeFileSync(configPath, JSON.stringify(merged, null, 2) + "\n", "utf8");
+	// web-search.json can contain provider API keys; default to user-only permissions.
+	try {
+		chmodSync(configPath, 0o600);
+	} catch {
+		// ignore permission errors (best-effort)
+	}
 }
 
 function formatRouteLabel(provider: PiWebSearchProvider): string {
