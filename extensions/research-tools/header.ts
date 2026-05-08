@@ -150,7 +150,8 @@ function detectSystemResources(): SystemResources {
 	} catch {}
 
 	try {
-		execSync("command -v docker >/dev/null 2>&1", { timeout: 500 });
+		const probe = process.platform === "win32" ? "where docker" : "command -v docker";
+		execSync(probe, { timeout: 500, stdio: "ignore" });
 		cachedResources.docker = true;
 	} catch {}
 
