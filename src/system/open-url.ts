@@ -15,9 +15,11 @@ export function getOpenUrlCommand(
 	resolveCommand: ResolveExecutableFn = resolveExecutable,
 ): OpenUrlCommand | undefined {
 	if (platform === "win32") {
+		// Use explorer.exe directly instead of cmd /c start to avoid
+		// shell metacharacter injection (CWE-78).
 		return {
-			command: "cmd",
-			args: ["/c", "start", "", url],
+			command: "explorer",
+			args: [url],
 		};
 	}
 
