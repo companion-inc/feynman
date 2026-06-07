@@ -109,6 +109,10 @@ const RESEARCH_MODEL_PREFERENCES = [
 		reason: "good fallback when GLM is the available research model",
 	},
 	{
+		spec: "minimax/MiniMax-M3",
+		reason: "latest MiniMax model with 512K context and image input for research work",
+	},
+	{
 		spec: "minimax/MiniMax-M2.7",
 		reason: "good fallback when MiniMax is the available research model",
 	},
