@@ -80,6 +80,7 @@ type ApiKeyProviderInfo = {
 };
 
 const API_KEY_PROVIDERS: ApiKeyProviderInfo[] = [
+	{ id: "atlascloud", label: "Atlas Cloud (59 frontier models, OpenAI-compatible)", envVar: "ATLASCLOUD_API_KEY" },
 	{ id: "openai", label: "OpenAI Platform API", envVar: "OPENAI_API_KEY" },
 	{ id: "anthropic", label: "Anthropic API", envVar: "ANTHROPIC_API_KEY" },
 	{ id: "google", label: "Google Gemini API", envVar: "GEMINI_API_KEY" },
