@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { appendFileSync, cpSync, existsSync, lstatSync, mkdtempSync, mkdirSync, readFileSync, symlinkSync, writeFileSync } from "node:fs";
+import { appendFileSync, cpSync, existsSync, lstatSync, mkdtempSync, mkdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 
@@ -345,9 +345,11 @@ test("installPackageSources installs Pi runtime peers beside Pi packages", async
 	const invocations = readFileSync(logPath, "utf8").trim().split("\n").map((line) => JSON.parse(line) as string[]);
 	assert.equal(invocations.length, 1);
 	assert.ok(invocations[0]?.includes("pi-btw"));
-	assert.ok(invocations[0]?.some((entry) => /^@mariozechner\/pi-coding-agent@/.test(entry)));
-	assert.ok(invocations[0]?.some((entry) => /^@mariozechner\/pi-ai@/.test(entry)));
-	assert.ok(invocations[0]?.some((entry) => /^@mariozechner\/pi-tui@/.test(entry)));
+	assert.ok(invocations[0]?.some((entry) => /^@mariozechner\/pi-agent-core@npm:@earendil-works\/pi-agent-core@/.test(entry)));
+	assert.ok(invocations[0]?.some((entry) => /^@mariozechner\/pi-coding-agent@npm:@earendil-works\/pi-coding-agent@/.test(entry)));
+	assert.ok(invocations[0]?.some((entry) => /^@mariozechner\/pi-ai@npm:@earendil-works\/pi-ai@/.test(entry)));
+	assert.ok(invocations[0]?.some((entry) => /^@mariozechner\/pi-tui@npm:@earendil-works\/pi-tui@/.test(entry)));
+	assert.ok(invocations[0]?.some((entry) => /^@earendil-works\/pi-agent-core@/.test(entry)));
 	assert.ok(invocations[0]?.some((entry) => /^@earendil-works\/pi-coding-agent@/.test(entry)));
 	assert.ok(invocations[0]?.some((entry) => /^@earendil-works\/pi-ai@/.test(entry)));
 	assert.ok(invocations[0]?.some((entry) => /^@earendil-works\/pi-tui@/.test(entry)));
@@ -495,4 +497,66 @@ test("updateConfiguredPackages skips native package updates on unsupported Node 
 	assert.equal(invocations.length, 1);
 	assert.ok(invocations[0]?.includes("test-regular@latest"));
 	assert.ok(!invocations[0]?.some((entry) => entry.includes("pi-session-search")));
+});
+
+test("installPackageSources emits npm alias specs for legacy Pi runtime peers found in node_modules", async () => {
+	const root = mkdtempSync(join(tmpdir(), "feynman-package-ops-"));
+	const workingDir = resolve(root, "project");
+	const agentDir = resolve(root, "agent");
+	const logPath = resolve(root, "npm-invocations.jsonl");
+	mkdirSync(workingDir, { recursive: true });
+
+	const scriptPath = writeFakeNpmScript(root, [
+		`import { appendFileSync } from "node:fs";`,
+		`appendFileSync(${JSON.stringify(logPath)}, JSON.stringify(process.argv.slice(2)) + "\\n", "utf8");`,
+		"process.exit(0);",
+	].join("\n"));
+
+	writeSettings(agentDir, {
+		npmCommand: [process.execPath, scriptPath],
+	});
+
+	// Simulate the standalone bundle layout: legacy-scope directories whose
+	// package.json name field points at the current @earendil-works scope.
+	const appRoot = resolve(import.meta.dirname ?? __dirname, "..");
+	const bundledRoot = resolve(appRoot, ".feynman", "npm", "node_modules");
+	const legacyPackages = {
+		"@mariozechner/pi-agent-core": "@earendil-works/pi-agent-core",
+		"@mariozechner/pi-coding-agent": "@earendil-works/pi-coding-agent",
+		"@mariozechner/pi-ai": "@earendil-works/pi-ai",
+		"@mariozechner/pi-tui": "@earendil-works/pi-tui",
+	};
+
+	const createdPaths: string[] = [];
+	try {
+		for (const [dirName, realName] of Object.entries(legacyPackages)) {
+			const pkgDir = resolve(bundledRoot, dirName);
+			mkdirSync(pkgDir, { recursive: true });
+			createdPaths.push(pkgDir);
+			writeFileSync(
+				resolve(pkgDir, "package.json"),
+				JSON.stringify({ name: realName, version: "0.79.1" }, null, 2) + "\n",
+				"utf8",
+			);
+		}
+
+		const result = await installPackageSources(workingDir, agentDir, ["npm:pi-btw"]);
+
+		assert.deepEqual(result.installed, ["npm:pi-btw"]);
+		const invocations = readFileSync(logPath, "utf8").trim().split("\n").map((line) => JSON.parse(line) as string[]);
+		assert.equal(invocations.length, 1);
+
+		// When found in node_modules with a mismatched name, the spec must use
+		// the npm: alias form so the registry can resolve it.
+		assert.ok(invocations[0]?.some((entry) => /^@mariozechner\/pi-agent-core@npm:@earendil-works\/pi-agent-core@0\.79\.1$/.test(entry)));
+		assert.ok(invocations[0]?.some((entry) => /^@mariozechner\/pi-coding-agent@npm:@earendil-works\/pi-coding-agent@0\.79\.1$/.test(entry)));
+		assert.ok(invocations[0]?.some((entry) => /^@mariozechner\/pi-ai@npm:@earendil-works\/pi-ai@0\.79\.1$/.test(entry)));
+		assert.ok(invocations[0]?.some((entry) => /^@mariozechner\/pi-tui@npm:@earendil-works\/pi-tui@0\.79\.1$/.test(entry)));
+	} finally {
+		for (const pkgDir of createdPaths) {
+			rmSync(pkgDir, { recursive: true, force: true });
+		}
+		const scopeDir = resolve(bundledRoot, "@mariozechner");
+		try { rmSync(scopeDir, { recursive: true, force: true }); } catch {}
+	}
 });

@@ -168,22 +168,26 @@ function isPiRuntimePackageName(packageName: string): boolean {
 	return packageName.startsWith("pi-") || packageName.includes("/pi-");
 }
 
-function readInstalledPackageVersion(packageRoot: string): string | undefined {
-	try {
-		const pkg = JSON.parse(readFileSync(resolve(packageRoot, "package.json"), "utf8")) as { version?: unknown };
-		return typeof pkg.version === "string" ? pkg.version : undefined;
-	} catch {
-		return undefined;
-	}
-}
-
 function resolveRuntimePeerSpec(packageName: string): string | undefined {
 	for (const packageRoot of [
 		resolve(APP_ROOT, "node_modules", packageName),
 		resolve(APP_ROOT, ".feynman", "npm", "node_modules", packageName),
 	]) {
-		const version = readInstalledPackageVersion(packageRoot);
-		if (version) return `${packageName}@${version}`;
+		try {
+			const pkg = JSON.parse(readFileSync(resolve(packageRoot, "package.json"), "utf8")) as {
+				name?: unknown;
+				version?: unknown;
+			};
+			const version = typeof pkg.version === "string" ? pkg.version : undefined;
+			if (!version) continue;
+			const pkgName = typeof pkg.name === "string" ? pkg.name : undefined;
+			if (pkgName && pkgName !== packageName) {
+				return `${packageName}@npm:${pkgName}@${version}`;
+			}
+			return `${packageName}@${version}`;
+		} catch {
+			continue;
+		}
 	}
 
 	const aliasTarget = LEGACY_PI_RUNTIME_PACKAGE_ALIASES[packageName as keyof typeof LEGACY_PI_RUNTIME_PACKAGE_ALIASES];
