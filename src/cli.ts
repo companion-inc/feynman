@@ -867,48 +867,61 @@ async function runMain(input: { here: string; appRoot: string; feynmanVersion: s
 		return;
 	}
 
-	const { values, positionals } = parseArgs({
-		args: process.argv.slice(2),
-		allowPositionals: true,
-		options: {
-			cwd: { type: "string" },
-			doctor: { type: "boolean" },
-			help: { type: "boolean" },
-			version: { type: "boolean" },
-			"alpha-login": { type: "boolean" },
-			"alpha-logout": { type: "boolean" },
-			"alpha-status": { type: "boolean" },
-			mode: { type: "string" },
-			model: { type: "string" },
-			"new-session": { type: "boolean" },
-			json: { type: "boolean" },
-			host: { type: "string" },
-			limit: { type: "string" },
-			"no-auth": { type: "boolean" },
-			"no-open": { type: "boolean" },
-			"expand-citations": { type: "string" },
-			"full-text-top": { type: "string" },
-			port: { type: "string" },
-			"critique-top": { type: "string" },
-			synthesize: { type: "boolean" },
-			"synthesis-top": { type: "string" },
-			"synthesis-model": { type: "string" },
-			"output-dir": { type: "string" },
-			"fetch-full-text": { type: "boolean" },
-			"preference-file": { type: "string" },
-			"reproduction-notes": { type: "string" },
-			prompt: { type: "string" },
-			"service-tier": { type: "string" },
-			"session-dir": { type: "string" },
-			"source-fixture": { type: "string" },
-			"setup-preview": { type: "boolean" },
-			"tier1-threshold": { type: "string" },
-			"tier2-threshold": { type: "string" },
-			thinking: { type: "string" },
-			overlap: { type: "string" },
-			"window-size": { type: "string" },
-		},
-	});
+	const parseCliArgs = () =>
+		parseArgs({
+			args: process.argv.slice(2),
+			allowPositionals: true,
+			options: {
+				cwd: { type: "string" },
+				doctor: { type: "boolean" },
+				help: { type: "boolean" },
+				version: { type: "boolean" },
+				"alpha-login": { type: "boolean" },
+				"alpha-logout": { type: "boolean" },
+				"alpha-status": { type: "boolean" },
+				mode: { type: "string" },
+				model: { type: "string" },
+				"new-session": { type: "boolean" },
+				json: { type: "boolean" },
+				host: { type: "string" },
+				limit: { type: "string" },
+				"no-auth": { type: "boolean" },
+				"no-open": { type: "boolean" },
+				"expand-citations": { type: "string" },
+				"full-text-top": { type: "string" },
+				port: { type: "string" },
+				"critique-top": { type: "string" },
+				synthesize: { type: "boolean" },
+				"synthesis-top": { type: "string" },
+				"synthesis-model": { type: "string" },
+				"output-dir": { type: "string" },
+				"fetch-full-text": { type: "boolean" },
+				"preference-file": { type: "string" },
+				"reproduction-notes": { type: "string" },
+				prompt: { type: "string" },
+				"service-tier": { type: "string" },
+				"session-dir": { type: "string" },
+				"source-fixture": { type: "string" },
+				"setup-preview": { type: "boolean" },
+				"tier1-threshold": { type: "string" },
+				"tier2-threshold": { type: "string" },
+				thinking: { type: "string" },
+				overlap: { type: "string" },
+				"window-size": { type: "string" },
+			},
+		});
+
+	let parsedArgs: ReturnType<typeof parseCliArgs>;
+	try {
+		parsedArgs = parseCliArgs();
+	} catch (error) {
+		if (error && typeof error === "object" && "code" in error && error.code === "ERR_PARSE_ARGS_UNKNOWN_OPTION") {
+			const message = error instanceof Error ? error.message : String(error);
+			throw new Error(`${message}\nRun \`feynman help\` to see available commands and flags.`);
+		}
+		throw error;
+	}
+	const { values, positionals } = parsedArgs;
 
 	if (values.help) {
 		printHelp(appRoot);
