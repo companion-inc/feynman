@@ -146,10 +146,11 @@ export const cliCommandSections = [
 		commands: [
 			{ usage: "feynman packages list", description: "Show core and optional Pi package presets." },
 			{ usage: "feynman packages install <preset>", description: "Install optional package presets on demand." },
+			{ usage: "feynman extensions", description: "List project and package-provided Pi extensions." },
 			{ usage: "feynman search status", description: "Show Pi web-access status and config path." },
 			{ usage: "feynman search set <provider> [api-key]", description: "Set the web search provider and optionally save its API key." },
 			{ usage: "feynman search clear", description: "Reset web search provider to auto while preserving API keys." },
-			{ usage: "feynman update [package]", description: "Update installed packages, or a specific package." },
+			{ usage: "feynman update [package]", description: "Update installed packages, or a specific package. Extensions are provided by packages and update with them; there is no separate --extensions flag." },
 		],
 	},
 ];
@@ -169,7 +170,7 @@ export const legacyFlags = [
 	{ usage: "--setup-preview", description: "Alias for `feynman setup preview`." },
 ];
 
-export const topLevelCommandNames = ["alpha", "chat", "doctor", "help", "model", "packages", "paper", "rank", "search", "serve", "setup", "status", "update"];
+export const topLevelCommandNames = ["alpha", "chat", "doctor", "extensions", "help", "model", "packages", "paper", "rank", "search", "serve", "setup", "status", "update"];
 
 export function formatSlashUsage(command) {
 	return `/${command.name}${command.args ? ` ${command.args}` : ""}`;

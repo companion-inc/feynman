@@ -275,3 +275,29 @@ export function buildConnectorResources(workingDir: string): WorkbenchResource[]
 	}));
 	return [...packages, ...extensionFiles];
 }
+
+export interface ExtensionSummary {
+	projectExtensions: { name: string; path: string }[];
+	packageExtensions: { name: string; source: string; count: number }[];
+}
+
+const EXTENSION_COUNT_TAG = /^(\d+) extensions?$/;
+
+// Derives the extensions view from the shared connector enumeration so the CLI
+// `feynman extensions` command and the workbench stay in sync. Project
+// extensions are the loose .ts/.js files under ./extensions; package extensions
+// are surfaced by installed Pi packages that declare `pi.extensions`.
+export function summarizeExtensions(workingDir: string): ExtensionSummary {
+	const resources = buildConnectorResources(workingDir);
+	const projectExtensions = resources
+		.filter((resource) => resource.section === "Project extensions")
+		.map((resource) => ({ name: resource.name, path: resource.path ?? resource.name }));
+	const packageExtensions = resources.flatMap((resource) => {
+		if (resource.connectorKind !== "package") return [];
+		const countTag = resource.tags?.find((tag) => EXTENSION_COUNT_TAG.test(tag));
+		const count = countTag ? Number.parseInt(countTag, 10) : 0;
+		if (!Number.isInteger(count) || count <= 0) return [];
+		return [{ name: resource.name, source: resource.packageSources?.[0] ?? resource.name, count }];
+	});
+	return { projectExtensions, packageExtensions };
+}

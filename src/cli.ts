@@ -86,6 +86,7 @@ import {
 } from "./telemetry/posthog.js";
 import { ASH, printAsciiHeader, printInfo, printPanel, printSection, RESET, SAGE } from "./ui/terminal.js";
 import { createModelRegistry } from "./model/registry.js";
+import { summarizeExtensions } from "./workbench/package-resources.js";
 import { parseWorkbenchPort, serveWorkbench } from "./workbench/server.js";
 import {
 	cliCommandSections,
@@ -440,6 +441,30 @@ async function handlePackagesCommand(subcommand: string | undefined, args: strin
 		}
 		throw error;
 	}
+}
+
+function handleExtensionsCommand(workingDir: string): void {
+	const { projectExtensions, packageExtensions } = summarizeExtensions(workingDir);
+	printPanel("Feynman Extensions", [
+		"Pi extensions add tools to workbench chat sessions.",
+	]);
+	printSection("Project extensions");
+	if (projectExtensions.length === 0) {
+		printInfo("No project extensions found in ./extensions.");
+	} else {
+		for (const extension of projectExtensions) {
+			printInfo(`${extension.name}  ${extension.path}`);
+		}
+	}
+	printSection("From packages");
+	if (packageExtensions.length === 0) {
+		printInfo("No installed packages provide extensions.");
+	} else {
+		for (const entry of packageExtensions) {
+			printInfo(`${entry.name}  ${entry.count} extension${entry.count === 1 ? "" : "s"}  (${entry.source})`);
+		}
+	}
+	printInfo("Extensions are provided by packages and update with them: feynman update [package].");
 }
 
 function handleSearchCommand(subcommand: string | undefined, args: string[]): void {
@@ -1041,6 +1066,11 @@ async function runMain(input: { here: string; appRoot: string; feynmanVersion: s
 
 	if (command === "packages") {
 		await handlePackagesCommand(rest[0], rest.slice(1), workingDir, feynmanAgentDir);
+		return;
+	}
+
+	if (command === "extensions") {
+		handleExtensionsCommand(workingDir);
 		return;
 	}
 
