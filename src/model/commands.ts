@@ -143,6 +143,15 @@ type CustomProviderSetup = {
 	authHeader: boolean;
 };
 
+export const ATLASCLOUD_PROVIDER_CONFIG = {
+	providerId: "atlascloud",
+	baseUrl: "https://api.atlascloud.ai/v1",
+	api: "openai-completions",
+	apiKeyConfig: "ATLASCLOUD_API_KEY",
+	authHeader: true,
+	modelIds: ["qwen/qwen3.5-flash", "deepseek-ai/deepseek-v4-pro"],
+} as const;
+
 function normalizeProviderId(value: string): string {
 	return value.trim().toLowerCase().replace(/\s+/g, "-");
 }
@@ -464,6 +473,17 @@ async function promptLiteLlmProviderSetup(): Promise<CustomProviderSetup | undef
 	};
 }
 
+export function getAtlasCloudProviderSetup(): CustomProviderSetup {
+	return {
+		providerId: ATLASCLOUD_PROVIDER_CONFIG.providerId,
+		modelIds: [...ATLASCLOUD_PROVIDER_CONFIG.modelIds],
+		baseUrl: ATLASCLOUD_PROVIDER_CONFIG.baseUrl,
+		api: ATLASCLOUD_PROVIDER_CONFIG.api,
+		apiKeyConfig: ATLASCLOUD_PROVIDER_CONFIG.apiKeyConfig,
+		authHeader: ATLASCLOUD_PROVIDER_CONFIG.authHeader,
+	};
+}
+
 async function verifyCustomProvider(setup: CustomProviderSetup, authPath: string): Promise<void> {
 	const registry = createModelRegistry(authPath);
 	const modelsError = registry.getError();
@@ -696,6 +716,27 @@ async function configureApiKeyProvider(authPath: string, providerId?: string): P
 		}
 
 		printSuccess("Saved LiteLLM provider.");
+		await verifyCustomProvider(setup, authPath);
+		return true;
+	}
+
+	if (provider.id === "atlascloud") {
+		const setup = getAtlasCloudProviderSetup();
+		const modelsJsonPath = getModelsJsonPath(authPath);
+		const result = upsertProviderConfig(modelsJsonPath, setup.providerId, {
+			baseUrl: setup.baseUrl,
+			apiKey: setup.apiKeyConfig,
+			api: setup.api,
+			authHeader: setup.authHeader,
+			models: setup.modelIds.map((id) => ({ id })),
+		});
+		if (!result.ok) {
+			printWarning(result.error);
+			return false;
+		}
+
+		printSuccess("Saved Atlas Cloud provider.");
+		printInfo("Set ATLASCLOUD_API_KEY in your shell or .env before using Feynman.");
 		await verifyCustomProvider(setup, authPath);
 		return true;
 	}

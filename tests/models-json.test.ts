@@ -4,6 +4,7 @@ import { mkdtempSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
+import { ATLASCLOUD_PROVIDER_CONFIG, getAtlasCloudProviderSetup } from "../src/model/commands.js";
 import { upsertProviderConfig } from "../src/model/models-json.js";
 
 test("upsertProviderConfig creates models.json and merges provider config", () => {
@@ -71,6 +72,38 @@ test("upsertProviderConfig writes LiteLLM proxy config without master key", () =
 	assert.equal(parsed.providers.litellm.api, "openai-completions");
 	assert.equal(parsed.providers.litellm.authHeader, false);
 	assert.deepEqual(parsed.providers.litellm.models, [{ id: "llama3" }]);
+});
+
+test("Atlas Cloud setup maps to OpenAI-compatible provider config", () => {
+	const setup = getAtlasCloudProviderSetup();
+	assert.equal(setup.providerId, "atlascloud");
+	assert.equal(setup.baseUrl, "https://api.atlascloud.ai/v1");
+	assert.equal(setup.api, "openai-completions");
+	assert.equal(setup.apiKeyConfig, "ATLASCLOUD_API_KEY");
+	assert.equal(setup.authHeader, true);
+	assert.deepEqual(setup.modelIds, [...ATLASCLOUD_PROVIDER_CONFIG.modelIds]);
+
+	const dir = mkdtempSync(join(tmpdir(), "feynman-atlascloud-"));
+	const modelsPath = join(dir, "models.json");
+
+	const result = upsertProviderConfig(modelsPath, setup.providerId, {
+		baseUrl: setup.baseUrl,
+		apiKey: setup.apiKeyConfig,
+		api: setup.api,
+		authHeader: setup.authHeader,
+		models: setup.modelIds.map((id) => ({ id })),
+	});
+	assert.deepEqual(result, { ok: true });
+
+	const parsed = JSON.parse(readFileSync(modelsPath, "utf8")) as any;
+	assert.equal(parsed.providers.atlascloud.baseUrl, "https://api.atlascloud.ai/v1");
+	assert.equal(parsed.providers.atlascloud.apiKey, "ATLASCLOUD_API_KEY");
+	assert.equal(parsed.providers.atlascloud.api, "openai-completions");
+	assert.equal(parsed.providers.atlascloud.authHeader, true);
+	assert.deepEqual(parsed.providers.atlascloud.models, [
+		{ id: "qwen/qwen3.5-flash" },
+		{ id: "deepseek-ai/deepseek-v4-pro" },
+	]);
 });
 
 test("upsertProviderConfig rejects provider ids with path traversal chars", () => {

@@ -33,6 +33,7 @@ export type ModelStatusSnapshot = {
 };
 
 const PROVIDER_LABELS: Record<string, string> = {
+	atlascloud: "Atlas Cloud",
 	anthropic: "Anthropic",
 	openai: "OpenAI",
 	"openai-codex": "OpenAI Codex",
@@ -122,6 +123,7 @@ const RESEARCH_MODEL_FALLBACK_PREFERENCES: ResearchModelPreference[] = [
 ];
 
 const PROVIDER_SORT_ORDER = [
+	"atlascloud",
 	"anthropic",
 	"openai",
 	"openai-codex",
