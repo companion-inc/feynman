@@ -10,6 +10,7 @@ import { registerHuggingFaceTools } from "./research-tools/huggingface.js";
 import { registerInitCommand, registerOutputsCommand } from "./research-tools/project.js";
 import { registerServiceTierControls } from "./research-tools/service-tier.js";
 import { registerScienceDatabaseTools } from "./research-tools/science-databases.js";
+import { registerThinkingCommand } from "./research-tools/thinking.js";
 import { registerModelEndpointTools } from "./research-tools/model-endpoints.js";
 import { registerWorkbenchConnectorTools } from "./research-tools/workbench-connectors.js";
 import { registerWorkbenchContextTool } from "./research-tools/workbench-context.js";
@@ -31,6 +32,7 @@ export default function researchTools(pi: ExtensionAPI): void {
 	registerInitCommand(pi);
 	registerOutputsCommand(pi);
 	registerServiceTierControls(pi);
+	registerThinkingCommand(pi);
 	registerScienceDatabaseTools(pi);
 	registerModelEndpointTools(pi);
 	registerWorkbenchConnectorTools(pi);

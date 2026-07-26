@@ -42,6 +42,7 @@ export const extensionCommandSpecs = [
 	{ name: "init", args: "", section: "Project & Session", description: "Bootstrap AGENTS.md and session-log folders for a research project.", publicDocs: true },
 	{ name: "outputs", args: "", section: "Project & Session", description: "Browse all research artifacts (papers, outputs, experiments, notes).", publicDocs: true },
 	{ name: "service-tier", args: "", section: "Project & Session", description: "View or set the provider service tier override for supported models.", publicDocs: true },
+	{ name: "thinking", args: "[level]", section: "Project & Session", description: "View or set the current thinking level.", publicDocs: true },
 	{ name: "tools", args: "", section: "Project & Session", description: "Browse public research tools with their source and parameter summary.", publicDocs: true },
 ];
 

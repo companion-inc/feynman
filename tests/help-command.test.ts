@@ -3,6 +3,7 @@ import test from "node:test";
 
 import { registerDiscoveryCommands } from "../extensions/research-tools/discovery.js";
 import { registerHelpCommand } from "../extensions/research-tools/help.js";
+import { registerThinkingCommand } from "../extensions/research-tools/thinking.js";
 
 test("Feynman help omits generic scheduler and process package commands", async () => {
 	const registered = new Map<string, { handler: (_args: string[], ctx: unknown) => Promise<void> }>();
@@ -41,6 +42,7 @@ test("Feynman help omits generic scheduler and process package commands", async 
 		},
 	};
 
+	registerThinkingCommand(pi as any);
 	registerHelpCommand(pi as any);
 	await registered.get("help")?.handler([], ctx);
 
@@ -48,6 +50,7 @@ test("Feynman help omits generic scheduler and process package commands", async 
 	assert.ok(helpItems.some((item) => item.startsWith("/search ")));
 	assert.ok(helpItems.some((item) => item.startsWith("/preview ")));
 	assert.ok(helpItems.some((item) => item.startsWith("/hotkeys ")));
+	assert.ok(helpItems.some((item) => item.startsWith("/thinking [level]")));
 	assert.equal(helpItems.some((item) => item.startsWith("/ps ")), false);
 	assert.equal(helpItems.some((item) => item.startsWith("/schedule-prompt ")), false);
 });

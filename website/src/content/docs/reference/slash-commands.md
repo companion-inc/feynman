@@ -32,6 +32,7 @@ These are the primary commands you use during research runs. Workflow prompts ca
 | `/jobs` | Inspect visible research-run process/scheduler state and durable watch or experiment artifacts |
 | `/help` | Show grouped Feynman commands and prefill the editor with a selected command |
 | `/feynman-model` | Open the non-Pro model picker for the main default model and per-subagent overrides |
+| `/thinking [level]` | Show the current thinking level and choose one, or set `off`, `minimal`, `low`, `medium`, `high`, or `xhigh` directly; `Shift+Tab` still cycles levels |
 | `/init` | Bootstrap `AGENTS.md` and session-log folders for a new research project |
 | `/outputs` | Browse all research artifacts (papers, outputs, experiments, notes) |
 | `/btw <question>` | Ask a side question while the main research agent is busy and hand the result back when needed |
