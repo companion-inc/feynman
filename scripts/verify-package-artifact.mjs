@@ -700,10 +700,50 @@ if (
 requireMarkers(
 	readArchivedText(
 		archivePath,
+		"npm/node_modules/pi-web-access/index.ts",
+	),
+	"runtime pi-web-access research tools",
+	[
+		'StringEnum(["readable", "raw", "answer"]',
+		"findText:",
+		'StringEnum(["exact", "case-insensitive", "fuzzy"]',
+		'pi.registerCommand("web-results"',
+		"const pendingCurates = new Map<string, PendingCurate>();",
+		"function searchWithDeadline(",
+		"Searches return directly by default",
+	],
+);
+requireMarkers(
+	readArchivedText(
+		archivePath,
+		"npm/node_modules/pi-web-access/curator-server.ts",
+	),
+	"runtime pi-web-access curator lifecycle",
+	["const noBrowserTimeoutMs = Math.max(5000, getEffectiveTimeoutMs());"],
+);
+requireMarkers(
+	readArchivedText(
+		archivePath,
+		"npm/node_modules/pi-web-access/github-extract.ts",
+	),
+	"runtime pi-web-access Git subprocess handling",
+	['GIT_TERMINAL_PROMPT: "0"', "terminateProcessTree("],
+);
+requireMarkers(
+	readArchivedText(
+		archivePath,
 		"npm/node_modules/pi-web-access/utils.ts",
 	),
 	"runtime pi-web-access config helper",
 	["FEYNMAN_WEB_SEARCH_CONFIG", "PI_WEB_SEARCH_CONFIG", "configuredPath || join(getWebSearchConfigDir()"],
+);
+requireMarkers(
+	readArchivedText(
+		archivePath,
+		"npm/node_modules/pi-web-access/pdf-extract.ts",
+	),
+	"runtime pi-web-access PDF scratch path",
+	["FEYNMAN_FETCH_CACHE_DIR", 'join(process.cwd(), ".feynman", "cache", "fetch-content")'],
 );
 if (
 	readArchivedJson(

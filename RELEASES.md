@@ -6,6 +6,19 @@ GitHub release notes are generated from the matching `## vX.Y.Z` section in this
 
 ## Unreleased
 
+## v0.3.12 - 2026-08-03
+
+### Web research
+
+- Updated `pi-web-access` to `0.18.0`. `fetch_content` can now return raw textual HTTP responses, answer a question against one page while retaining its source text, retrieve direct PNG/JPEG/WebP/GIF images, and paginate long content on cleaner boundaries.
+- Added exact, case-insensitive, and fuzzy passage lookup over stored page content through `findText` and `findMode`, plus current Kagi, Ollama Cloud, xAI, Bright Data, SerpBase, and authenticated SearXNG routes.
+- Preserved routed-provider model selection and hardened Git clone cancellation from upstream, including non-interactive credential handling and process-tree termination.
+
+### Reliability
+
+- Kept PDF scratch Markdown in the active project's `.feynman/cache/fetch-content`, kept browser-cookie access opt-in, retained the bounded primary search deadline, and adopted upstream's per-call curator isolation and no-browser timeout rather than carrying superseded local patches.
+- Restored automatic package reconciliation for workspaces retaining the `0.3.11`, `0.3.10`, or older `0.3.6` bundled package defaults.
+
 ## v0.3.11 - 2026-08-01
 
 ### Research agents

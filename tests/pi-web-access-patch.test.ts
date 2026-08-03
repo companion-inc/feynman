@@ -71,8 +71,7 @@ test("patchPiWebAccessSource defaults workflow to none for index.ts without disa
 		'\t\tdescription: "Search workflow mode: none = no curator, summary-review = open curator with auto summary draft (default)",',
 		'\t}),',
 		'),',
-		'const description = "Provider auto-selects: Exa (direct API with key, MCP fallback without), else Perplexity (needs key), else Gemini API (needs key), else Gemini Web (needs a supported Chromium-based browser login).";',
-		'const message = "Gemini Web is unavailable. Sign into gemini.google.com in a supported Chromium-based browser.";',
+		'Searches auto-open the interactive browser curator and stream results live; set workflow to "none" to skip curation or "auto-summary" for a model-generated summary without the browser curator. Without a configured provider, auto-selects OpenAI, Exa, Gemini API, or Gemini Web. When SearXNG is configured, it is preferred first.',
 		"",
 	].join("\n");
 
@@ -81,8 +80,9 @@ test("patchPiWebAccessSource defaults workflow to none for index.ts without disa
 	assert.match(patched, /params\.workflow \?\? configWorkflow \?\? "none"/);
 	assert.match(patched, /return "summary-review";/);
 	assert.match(patched, /summary-review = open curator with auto summary draft \(opt-in\)/);
-	assert.match(patched, /browser-cookie fallback is disabled unless web-search\.json sets geminiBrowser to true/);
-	assert.match(patched, /Set \\"geminiBrowser\\": true in web-search\.json/);
+	assert.match(patched, /or opt-in Gemini Web/);
+	assert.match(patched, /Searches return directly by default/);
+	assert.match(patched, /set workflow to "summary-review" to open the interactive browser curator/);
 });
 
 test("patchPiWebAccessSource disables Gemini Web cookie access by default", () => {
@@ -159,11 +159,12 @@ test("patchPiWebAccessSource changes Gemini search browser fallback messaging to
 	const input = [
 		'throw new Error("Gemini search unavailable. Either:\\n" +',
 		'\t"  1. Set GEMINI_API_KEY in ~/.pi/web-search.json\\n" +',
-		'\t"  2. Sign into gemini.google.com in a supported Chromium-based browser"',
+		'\t"  2. Set GOOGLE_GEMINI_BASE_URL + CLOUDFLARE_API_KEY for routing\\n" +',
+		'\t"  3. Sign into gemini.google.com in a supported Chromium-based browser"',
 		");",
 		'throw new Error("No search provider available. Either:\\n" +',
 		'\t"  1. Set perplexityApiKey in ~/.pi/web-search.json\\n" +',
-		'\t"  4. Sign into gemini.google.com in a supported Chromium-based browser"',
+		'\t"  5. Sign into gemini.google.com in a supported Chromium-based browser"',
 		");",
 		"",
 	].join("\n");
@@ -189,27 +190,12 @@ test("patchPiWebAccessSource is idempotent", () => {
 	assert.equal(twice, once);
 });
 
-test("patchPiWebAccessSource cancels a clobbered parallel curate session in index.ts", () => {
-	const input = [
-		"\t\t\t\tconst onAbort = () => closeCurator();",
-		"\t\t\t\tpendingCurate = pc;",
-		"",
-	].join("\n");
-
-	const patched = patchPiWebAccessSource("index.ts", input);
-
-	assert.match(patched, /cancelPendingCurate\(\);\n\t\t\t\tpendingCurate = pc;/);
-
-	const twice = patchPiWebAccessSource("index.ts", patched);
-	assert.equal(twice, patched);
-});
-
 test("patchPiWebAccessSource bounds web_search query calls with a deadline in index.ts", () => {
 	const input = [
 		"const MAX_INLINE_CONTENT = 30000; // Content returned directly to agent",
 		"",
 		"async function run() {",
-		"\t\t\t\t\tconst { answer, results, inlineContent, provider } = await search(queryList[qi], {",
+		"\t\t\t\t\tconst response = await search(queryList[qi], {",
 		"\t\t\t\t\t\tprovider: requestedProvider,",
 		"\t\t\t\t\t});",
 		"\t\t\t\tconst { answer, results, inlineContent, provider } = await search(query, {",
@@ -223,7 +209,7 @@ test("patchPiWebAccessSource bounds web_search query calls with a deadline in in
 
 	assert.match(patched, /const SEARCH_CALL_TIMEOUT_MS = 90000;/);
 	assert.match(patched, /async function searchWithDeadline\(/);
-	assert.match(patched, /await searchWithDeadline\(queryList\[qi\], \{/);
+	assert.match(patched, /const response = await searchWithDeadline\(queryList\[qi\], \{/);
 	assert.match(patched, /await searchWithDeadline\(query, \{/);
 	assert.doesNotMatch(patched, /await search\(/);
 
@@ -231,42 +217,17 @@ test("patchPiWebAccessSource bounds web_search query calls with a deadline in in
 	assert.equal(twice, patched);
 });
 
-test("patchPiWebAccessSource enforces a curator browser-connect deadline in curator-server.ts", () => {
-	const input = [
-		"const STALE_THRESHOLD_MS = 30000;",
-		"const WATCHDOG_INTERVAL_MS = 5000;",
-		"",
-		"\t\t\twatchdog = setInterval(() => {",
-		"\t\t\t\tif (completed || !browserConnected) return;",
-		"\t\t\t\tif (Date.now() - lastHeartbeatAt <= STALE_THRESHOLD_MS) return;",
-		"\t\t\t\tif (!markCompleted()) return;",
-		'\t\t\t\tsetImmediate(() => callbacks.onCancel("stale"));',
-		"\t\t\t}, WATCHDOG_INTERVAL_MS);",
-		"",
-	].join("\n");
-
-	const patched = patchPiWebAccessSource("curator-server.ts", input);
-
-	assert.match(patched, /const BROWSER_CONNECT_TIMEOUT_MS = 120000;/);
-	assert.match(patched, /const serverStartedAt = Date\.now\(\);/);
-	assert.match(patched, /Date\.now\(\) - serverStartedAt <= BROWSER_CONNECT_TIMEOUT_MS/);
-	assert.doesNotMatch(patched, /if \(completed \|\| !browserConnected\) return;/);
-
-	const twice = patchPiWebAccessSource("curator-server.ts", patched);
-	assert.equal(twice, patched);
-});
-
-test("patchPiWebAccessSource keeps fetched PDF scratch files inside the project", () => {
+test("patchPiWebAccessSource keeps current fetched PDF scratch files inside the project", () => {
 	const source = [
 		'import { join, basename } from "node:path";',
-		'import { homedir } from "node:os";',
-		'const DEFAULT_OUTPUT_DIR = join(homedir(), "Downloads");',
+		'import { tmpdir } from "node:os";',
+		'const DEFAULT_OUTPUT_DIR = join(tmpdir(), "pi-web-pdf");',
 	].join("\n");
 
 	const patched = patchPiWebAccessSource("pdf-extract.ts", source);
 
 	assert.match(patched, /FEYNMAN_FETCH_CACHE_DIR/);
 	assert.match(patched, /process\.cwd\(\).*\.feynman.*cache.*fetch-content/);
-	assert.doesNotMatch(patched, /homedir|Downloads/);
+	assert.doesNotMatch(patched, /tmpdir|pi-web-pdf/);
 	assert.equal(patchPiWebAccessSource("pdf-extract.ts", patched), patched);
 });

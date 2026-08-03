@@ -101,7 +101,7 @@ test("bundled settings and package-list defaults use the same current core packa
 		"npm:pi-subagents@0.40.0",
 		"npm:pi-btw@0.4.1",
 		"npm:pi-docparser@3.0.1",
-		"npm:pi-web-access@0.17.1",
+		"npm:pi-web-access@0.18.0",
 		"npm:pi-otel@0.1.0",
 	]);
 });
@@ -147,6 +147,35 @@ test("normalizeFeynmanSettings upgrades the 0.3.10 pinned core package set", asy
 			packages: [
 				"npm:@companion-ai/alpha-hub@0.1.3",
 				"npm:pi-subagents@0.38.0",
+				"npm:pi-btw@0.4.1",
+				"npm:pi-docparser@3.0.1",
+				"npm:pi-web-access@0.17.1",
+				"npm:pi-otel@0.1.0",
+			],
+		}, null, 2) + "\n",
+		"utf8",
+	);
+	writeFileSync(bundledSettingsPath, "{}\n", "utf8");
+	writeFileSync(authPath, "{}\n", "utf8");
+
+	await normalizeFeynmanSettings(settingsPath, bundledSettingsPath, "medium", authPath);
+
+	const settings = JSON.parse(readFileSync(settingsPath, "utf8")) as { packages?: string[] };
+	assert.deepEqual(settings.packages, [...CORE_PACKAGE_SOURCES]);
+});
+
+test("normalizeFeynmanSettings upgrades the 0.3.11 pinned core package set", async () => {
+	const root = mkdtempSync(join(tmpdir(), "feynman-settings-"));
+	const settingsPath = join(root, "settings.json");
+	const bundledSettingsPath = join(root, "bundled-settings.json");
+	const authPath = join(root, "auth.json");
+
+	writeFileSync(
+		settingsPath,
+		JSON.stringify({
+			packages: [
+				"npm:@companion-ai/alpha-hub@0.1.3",
+				"npm:pi-subagents@0.40.0",
 				"npm:pi-btw@0.4.1",
 				"npm:pi-docparser@3.0.1",
 				"npm:pi-web-access@0.17.1",
@@ -310,7 +339,7 @@ test("package update sources map core and optional aliases", () => {
 	assert.deepEqual(resolvePackageUpdateSources("pi-subagents"), ["npm:pi-subagents@0.40.0"]);
 	assert.deepEqual(resolvePackageUpdateSources("subagents"), ["npm:pi-subagents@0.40.0"]);
 	assert.deepEqual(resolvePackageUpdateSources("npm:pi-subagents"), ["npm:pi-subagents@0.40.0"]);
-	assert.deepEqual(resolvePackageUpdateSources("pi-web-access"), ["npm:pi-web-access@0.17.1"]);
+	assert.deepEqual(resolvePackageUpdateSources("pi-web-access"), ["npm:pi-web-access@0.18.0"]);
 	assert.deepEqual(resolvePackageUpdateSources("alpha-hub"), ["npm:@companion-ai/alpha-hub@0.1.3"]);
 	assert.deepEqual(resolvePackageUpdateSources("npm:pi-subagents@0.37.2"), ["npm:pi-subagents@0.37.2"]);
 	assert.deepEqual(resolvePackageUpdateSources("hindsight"), ["npm:@luxusai/pi-hindsight"]);

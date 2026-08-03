@@ -77,6 +77,32 @@ function tarFlavor() {
 	return /bsdtar|libarchive/i.test(`${result.stdout}\n${result.stderr}`) ? "bsd" : "gnu";
 }
 
+export function deterministicTarMetadataArgs(flavor) {
+	return flavor === "bsd"
+		? [
+			"--uid",
+			"0",
+			"--gid",
+			"0",
+			"--uname",
+			"root",
+			"--gname",
+			"root",
+			"--no-acls",
+			"--no-fflags",
+			"--no-mac-metadata",
+			"--no-xattrs",
+		]
+		: [
+			"--owner=0",
+			"--group=0",
+			"--numeric-owner",
+			`--mtime=@${Math.floor(ARCHIVE_EPOCH_MS / 1000)}`,
+			"--sort=name",
+			"--pax-option=delete=atime,delete=ctime",
+		];
+}
+
 function runArchiveCommand(command, args, options = {}) {
 	const result = spawnSync(command, args, {
 		stdio: "inherit",
@@ -116,16 +142,7 @@ export async function createDeterministicTarGz(rootPath, archivePath) {
 			"-T",
 			listPath,
 		];
-		const ownership = tarFlavor() === "bsd"
-			? ["--uid", "0", "--gid", "0", "--uname", "root", "--gname", "root"]
-			: [
-				"--owner=0",
-				"--group=0",
-				"--numeric-owner",
-				`--mtime=@${Math.floor(ARCHIVE_EPOCH_MS / 1000)}`,
-				"--sort=name",
-				"--pax-option=delete=atime,delete=ctime",
-			];
+		const ownership = deterministicTarMetadataArgs(tarFlavor());
 		runArchiveCommand("tar", [...ownership, ...common], {
 			env: {
 				...process.env,

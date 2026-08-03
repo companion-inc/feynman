@@ -21,7 +21,7 @@ These are installed by default with every Feynman installation. They provide the
 | `pi-subagents` | Parallel agent spawning for literature gathering and task decomposition. Powers the multi-agent workflows |
 | `pi-btw` | Side conversations while the main research agent is busy, including `/btw` follow-ups and handoff back into the main thread |
 | `pi-docparser` | Parse PDFs, Office documents, spreadsheets, and images for content extraction |
-| `pi-web-access` | Web browsing, simultaneous multi-provider search, GitHub access, PDF fetching, and media retrieval |
+| `pi-web-access` | Multi-provider web search, raw and page-grounded retrieval, stored-page passage lookup, GitHub access, PDFs, and direct image/media retrieval |
 | `pi-otel` | OpenTelemetry spans for Pi sessions, model calls, turns, and tool usage, exported without prompt or tool payload content |
 
 These packages are updated together when you run `feynman update`. You do not need to install them individually.

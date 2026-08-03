@@ -1,5 +1,7 @@
 export const ARCHIVE_EPOCH_MS: number;
 
+export function deterministicTarMetadataArgs(flavor: "bsd" | "gnu"): string[];
+
 export function collectArchiveEntries(rootPath: string): string[];
 
 export function normalizeArchiveTreeTimestamps(

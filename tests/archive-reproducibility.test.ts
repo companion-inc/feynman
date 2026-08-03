@@ -7,6 +7,7 @@ import test from "node:test";
 import {
 	createDeterministicTarGz,
 	createDeterministicZip,
+	deterministicTarMetadataArgs,
 } from "../scripts/lib/deterministic-archive.mjs";
 import { computeFileSha256 } from "../scripts/lib/runtime-workspace-integrity.mjs";
 
@@ -57,4 +58,12 @@ test("archive inputs remain content-sensitive", async () => {
 	appendFileSync(join(tree, "README.md"), "changed\n");
 	await createDeterministicTarGz(tree, second);
 	assert.notEqual(computeFileSha256(first), computeFileSha256(second));
+});
+
+test("BSD tar archives exclude host metadata that changes across clean installs", () => {
+	assert.deepEqual(
+		deterministicTarMetadataArgs("bsd").slice(-4),
+		["--no-acls", "--no-fflags", "--no-mac-metadata", "--no-xattrs"],
+	);
+	assert.doesNotMatch(deterministicTarMetadataArgs("gnu").join(" "), /xattrs|mac-metadata/);
 });

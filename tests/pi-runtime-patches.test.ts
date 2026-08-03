@@ -174,8 +174,8 @@ pi.registerCommand("search", { description: "Browse stored web search results" }
 
 const WEB_ACCESS_PDF_SOURCE = `
 import { join, basename } from "node:path";
-import { homedir } from "node:os";
-const DEFAULT_OUTPUT_DIR = join(homedir(), "Downloads");
+import { tmpdir } from "node:os";
+const DEFAULT_OUTPUT_DIR = join(tmpdir(), "pi-web-pdf");
 `;
 
 const SUBAGENT_PI_SPAWN_SOURCE = `
@@ -488,7 +488,7 @@ test("patchPiRuntimeNodeModules patches the vendored runtime workspace", async (
 	assert.match(readFileSync(webAccessPath, "utf8"), /pi\.registerCommand\("web-results"/);
 	assert.match(readFileSync(webAccessPdfPath, "utf8"), /FEYNMAN_FETCH_CACHE_DIR/);
 	assert.match(readFileSync(webAccessPdfPath, "utf8"), /\.feynman.*cache.*fetch-content/);
-	assert.doesNotMatch(readFileSync(webAccessPdfPath, "utf8"), /Downloads|homedir/);
+	assert.doesNotMatch(readFileSync(webAccessPdfPath, "utf8"), /pi-web-pdf|tmpdir/);
 	assert.match(readFileSync(subagentSpawnPath, "utf8"), /process\.env\.FEYNMAN_PI_CLI_PATH/);
 	assert.match(readFileSync(subagentSpawnPath, "utf8"), /\targv2\?: string;/);
 	assert.match(readFileSync(subagentSpawnPath, "utf8"), /path\.basename\(argvPath\) !== "pi-cli-wrapper\.js"/);

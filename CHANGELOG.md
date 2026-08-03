@@ -4,6 +4,16 @@ Workspace lab notebook for long-running or resumable research work.
 
 Use this file to track chronology, not release notes. Keep entries short, factual, and operational.
 
+### 2026-08-03 02:53 EDT — intake-sweep-pi-web-access-0.18
+
+- Objective: Refresh the empty issue/PR queue and recent contributor/fork state, then qualify `pi-web-access@0.18.0` as the smallest current research-retrieval upgrade from the clean `0.3.11` release baseline.
+- Changed: Updated Feynman's bundled/default/runtime-locked web package to `0.18.0`, retained migration for the `0.3.11`, `0.3.10`, and older bundled defaults, and bumped the release candidate to `0.3.12`. Adopted upstream raw and page-grounded fetches, direct images, stored-content passage lookup, provider additions, curator isolation, and Git cancellation while preserving project-local PDF scratch files, opt-in browser cookies, no-curator defaults, and the bounded primary-search deadline. BSD runtime archives now omit host ACL, flags, macOS metadata, and xattrs so clean installations remain deterministic.
+- Intake: GitHub has no open issues or PRs, origin exposes only `main`, and the preserved Lima worktree at `6a81316` has no unique commits. Recently pushed forks are identical to or behind `main`; `fuzzywigg/feynman` is 128 commits behind and its security changes are superseded by current safe versions. No contributor change earned a port.
+- Source proof: npm `pi-web-access@0.18.0` resolves to upstream git head `d2aab00dcf0547572276d9de4bc4a2a49d640e13`. Its exact source passed `363/363` tests, typecheck, production audit, and a 58-file dry pack before integration.
+- Verified locally: Focused Feynman coverage passed `60/60`; the full suite passed `729/729`; root typecheck, build, architecture check, root/site/runtime/consumer audits, website lint/typecheck/build (`34` pages), registry signatures (`754` packages and `181` attestations), actionlint, package freshness review, and `git diff --check` passed. Installed `pi-web-access` loaded four compiled TypeBox tool schemas; a real raw fetch of `https://example.com` and case-insensitive stored-passage lookup both returned `Example Domain`.
+- Package proof: Dry and real packs matched at `112,578,552` bytes, `329,638,077` unpacked bytes, and `39,705` files. The tarball SHA-256 is `16b37f288fab8e098c690fea0f16791baeb5487b764e2c44a993fe20286d1d63`; the embedded runtime SHA-256 is `946d29d03a29eeaaf05bf2f3afbefaed9aa8f781dadf1d8c0cacd26d92e66099`. Clean local/global installs, stale-Pi upgrade, CLI/package/search flows, package-artifact verification, extracted-runtime/consumer audits, installed RPC, extension loading, and TypeBox checks passed.
+- State: `verified` locally and `unverified` for committed exact-SHA Daytona, PR CI, merge, and npm/GitHub/native/live-installer publication. Next: commit the exact candidate, prove it in a disposable Daytona sandbox and required CI, merge only the green head, then verify every `0.3.12` delivery surface.
+
 ### 2026-08-02 00:45 PDT — intake-sweep-0.3.11-release-completion
 
 - Objective: Finish the `pi-subagents@0.40.0` intake through exact-commit proof, publication, live installer verification, successor CI, and queue/worktree reconciliation.
