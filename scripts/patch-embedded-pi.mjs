@@ -5,6 +5,7 @@ import { homedir } from "node:os";
 import { delimiter, dirname, isAbsolute, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { FEYNMAN_LOGO_HTML } from "../logo.mjs";
+import { patchAlphaHubAskSource } from "./lib/alpha-hub-ask-patch.mjs";
 import { patchAlphaHubAuthSource } from "./lib/alpha-hub-auth-patch.mjs";
 import { patchAlphaHubSearchResultsSource, patchAlphaHubSearchSource } from "./lib/alpha-hub-search-patch.mjs";
 import { patchMcpSdkPackageJsonSource } from "./lib/mcp-sdk-package-patch.mjs";
@@ -1070,7 +1071,7 @@ if (alphaHubAuthPath && existsSync(alphaHubAuthPath)) {
 }
 if (alphaHubSearchPath && existsSync(alphaHubSearchPath)) {
 	const source = readFileSync(alphaHubSearchPath, "utf8");
-	const patched = patchAlphaHubSearchSource(source);
+	const patched = patchAlphaHubAskSource(patchAlphaHubSearchSource(source));
 	if (patched !== source) {
 		writeFileSync(alphaHubSearchPath, patched, "utf8");
 	}
@@ -1088,7 +1089,7 @@ if (alphaHubIndexPath && existsSync(alphaHubIndexPath)) {
 const workspaceAlphaHubLib = resolve(workspaceRoot, "@companion-ai", "alpha-hub", "src", "lib");
 for (const [fileName, patchFn] of [
 	["auth.js", patchAlphaHubAuthSource],
-	["alphaxiv.js", patchAlphaHubSearchSource],
+	["alphaxiv.js", (source) => patchAlphaHubAskSource(patchAlphaHubSearchSource(source))],
 	["index.js", patchAlphaHubSearchResultsSource],
 ]) {
 	const filePath = resolve(workspaceAlphaHubLib, fileName);

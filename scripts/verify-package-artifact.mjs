@@ -369,7 +369,11 @@ requireMarkers(
 requireMarkers(
 	readText(resolve(alphaLib, "alphaxiv.js"), "bundled alpha-hub search"),
 	"bundled alpha-hub search",
-	["async function searchRestFast(", "return await fallbackSearch("],
+	[
+		"async function searchRestFast(",
+		"return await fallbackSearch(",
+		"callTool('answer_pdf_queries', { paper: url, queries: [query] })",
+	],
 );
 requireMarkers(
 	readText(resolve(alphaLib, "index.js"), "bundled alpha-hub parser"),

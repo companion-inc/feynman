@@ -25,6 +25,7 @@ import { PI_WEB_ACCESS_PATCH_TARGETS, patchPiWebAccessSource } from "./lib/pi-we
 import { PI_SUBAGENTS_PATCH_TARGETS, patchPiSubagentsSource, stripPiSubagentBuiltinModelSource } from "./lib/pi-subagents-patch.mjs";
 import { PI_OTEL_PATCH_TARGETS, patchPiOtelSource } from "./lib/pi-otel-patch.mjs";
 import { PI_SESSION_SEARCH_PATCH_TARGETS, patchPiSessionSearchSource } from "./lib/pi-session-search-patch.mjs";
+import { patchAlphaHubAskSource } from "./lib/alpha-hub-ask-patch.mjs";
 import { patchAlphaHubAuthSource } from "./lib/alpha-hub-auth-patch.mjs";
 import { patchAlphaHubSearchSource } from "./lib/alpha-hub-search-patch.mjs";
 import { patchMcpSdkPackageJsonSource } from "./lib/mcp-sdk-package-patch.mjs";
@@ -671,7 +672,7 @@ function patchBundledAlphaHub() {
 	}
 	if (existsSync(alphaxivPath)) {
 		const source = readFileSync(alphaxivPath, "utf8");
-		const patched = patchAlphaHubSearchSource(source);
+		const patched = patchAlphaHubAskSource(patchAlphaHubSearchSource(source));
 		if (patched !== source) {
 			writeFileSync(alphaxivPath, patched, "utf8");
 			changed = true;

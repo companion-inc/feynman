@@ -1,6 +1,7 @@
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 
+import { patchAlphaHubAskSource } from "../../scripts/lib/alpha-hub-ask-patch.mjs";
 import { patchAlphaHubAuthSource } from "../../scripts/lib/alpha-hub-auth-patch.mjs";
 import { patchAlphaHubSearchResultsSource, patchAlphaHubSearchSource } from "../../scripts/lib/alpha-hub-search-patch.mjs";
 import { patchMcpSdkPackageJsonSource } from "../../scripts/lib/mcp-sdk-package-patch.mjs";
@@ -316,7 +317,7 @@ export function patchPiRuntimeNodeModules(appRoot: string, feynmanAgentDir?: str
 		) || changed;
 		changed = patchFileIfPresent(
 			resolve(nodeModulesPath, "@companion-ai", "alpha-hub", "src", "lib", "alphaxiv.js"),
-			patchAlphaHubSearchSource,
+			(source) => patchAlphaHubAskSource(patchAlphaHubSearchSource(source)),
 		) || changed;
 		changed = patchFileIfPresent(
 			resolve(nodeModulesPath, "@companion-ai", "alpha-hub", "src", "lib", "index.js"),
