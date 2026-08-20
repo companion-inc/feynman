@@ -89,41 +89,51 @@ function prune<T extends Record<string, unknown>>(record: T): Record<string, unk
 	return Object.fromEntries(Object.entries(record).filter(([, value]) => value !== undefined));
 }
 
-async function send(url: URL, accept: string): Promise<Response> {
+// The abort timer stays armed across the body read: fetch resolves on headers,
+// so clearing it earlier would leave a stalled body hanging forever.
+async function send<T>(url: URL, accept: string, read: (response: Response) => Promise<T>): Promise<T> {
 	return withNcbiRateLimit(url, async () => {
 		const controller = new AbortController();
 		const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
 		try {
-			return await fetch(url, {
+			const response = await fetch(url, {
 				headers: {
 					accept,
 					"user-agent": "feynman-pubmed-tools/1.0 (https://github.com/companion-ai/feynman)",
 				},
 				signal: controller.signal,
 			});
+			return await read(response);
 		} finally {
 			clearTimeout(timeout);
 		}
 	});
 }
 
-async function fetchJson(url: URL): Promise<Record<string, unknown>> {
-	const response = await send(url, "application/json");
+function assertOk(response: Response): void {
 	if (!response.ok) throw new Error(`PubMed request failed: ${response.status} ${response.statusText}`);
-	return recordValue(await response.json());
+}
+
+async function fetchJson(url: URL): Promise<Record<string, unknown>> {
+	return send(url, "application/json", async (response) => {
+		assertOk(response);
+		return recordValue(await response.json());
+	});
 }
 
 async function fetchText(url: URL, accept = "application/xml,text/xml,text/plain,*/*"): Promise<string> {
-	const response = await send(url, accept);
-	if (!response.ok) throw new Error(`PubMed request failed: ${response.status} ${response.statusText}`);
-	return response.text();
+	return send(url, accept, async (response) => {
+		assertOk(response);
+		return response.text();
+	});
 }
 
 async function fetchOptionalText(url: URL, accept = "application/xml,text/xml,*/*"): Promise<{ status: number; text?: string }> {
-	const response = await send(url, accept);
-	if (response.status === 404) return { status: 404 };
-	if (!response.ok) throw new Error(`PubMed request failed: ${response.status} ${response.statusText}`);
-	return { status: response.status, text: await response.text() };
+	return send(url, accept, async (response) => {
+		if (response.status === 404) return { status: 404 };
+		assertOk(response);
+		return { status: response.status, text: await response.text() };
+	});
 }
 
 function queryOptions(query: string): QueryOptions {
