@@ -17,6 +17,13 @@ const DEFAULT_LIMIT = 5;
 const MAX_LIMIT = 20;
 const REQUEST_TIMEOUT_MS = 25_000;
 
+let requestTimeoutMs = REQUEST_TIMEOUT_MS;
+
+/** Test seam: shorten the request budget so timeout cases need not wait 25s. */
+export function setRequestTimeoutForTests(ms: number): void {
+	requestTimeoutMs = ms > 0 ? ms : REQUEST_TIMEOUT_MS;
+}
+
 type QueryOptions = Record<string, string>;
 type CitationInput = {
 	author?: string;
@@ -94,7 +101,7 @@ function prune<T extends Record<string, unknown>>(record: T): Record<string, unk
 async function send<T>(url: URL, accept: string, read: (response: Response) => Promise<T>): Promise<T> {
 	return withNcbiRateLimit(url, async () => {
 		const controller = new AbortController();
-		const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+		const timeout = setTimeout(() => controller.abort(), requestTimeoutMs);
 		try {
 			const response = await fetch(url, {
 				headers: {

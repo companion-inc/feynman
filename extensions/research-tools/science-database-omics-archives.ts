@@ -1,3 +1,5 @@
+import { withNcbiRateLimit } from "./ncbi-rate-limit.js";
+
 type SearchParams = { limit?: number; query: string; source: string };
 
 const DEFAULT_LIMIT = 5;
@@ -60,7 +62,13 @@ function splitTerms(value: string): string[] {
 		.filter(Boolean);
 }
 
+// NCBI shares one per-IP E-utilities budget across every module, so these
+// requests join the same queue. Non-NCBI hosts return immediately.
 async function fetchJson(url: URL, init?: RequestInit): Promise<unknown> {
+	return withNcbiRateLimit(url, () => fetchJsonDirect(url, init));
+}
+
+async function fetchJsonDirect(url: URL, init?: RequestInit): Promise<unknown> {
 	const controller = new AbortController();
 	const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
 	try {
@@ -80,7 +88,13 @@ async function fetchJson(url: URL, init?: RequestInit): Promise<unknown> {
 	}
 }
 
+// NCBI shares one per-IP E-utilities budget across every module, so these
+// requests join the same queue. Non-NCBI hosts return immediately.
 async function fetchJsonWithHeaders(url: URL, init?: RequestInit): Promise<{ headers: Headers; payload: unknown }> {
+	return withNcbiRateLimit(url, () => fetchJsonWithHeadersDirect(url, init));
+}
+
+async function fetchJsonWithHeadersDirect(url: URL, init?: RequestInit): Promise<{ headers: Headers; payload: unknown }> {
 	const controller = new AbortController();
 	const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
 	try {

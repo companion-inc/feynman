@@ -1,3 +1,5 @@
+import { withNcbiRateLimit } from "./ncbi-rate-limit.js";
+
 type SearchParams = {
 	limit?: number;
 	query: string;
@@ -62,7 +64,13 @@ function ncbiIdentityParams(): Record<string, string> {
 	};
 }
 
+// NCBI shares one per-IP E-utilities budget across every module, so these
+// requests join the same queue. Non-NCBI hosts return immediately.
 async function fetchJson(url: URL, init?: RequestInit): Promise<unknown> {
+	return withNcbiRateLimit(url, () => fetchJsonDirect(url, init));
+}
+
+async function fetchJsonDirect(url: URL, init?: RequestInit): Promise<unknown> {
 	const controller = new AbortController();
 	const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
 	try {

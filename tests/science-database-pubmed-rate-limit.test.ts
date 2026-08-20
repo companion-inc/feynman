@@ -3,6 +3,7 @@ import { afterEach, test } from "node:test";
 
 import { registerScienceDatabaseTools } from "../extensions/research-tools/science-databases.js";
 import { resetNcbiRateLimitForTests, withNcbiRateLimit } from "../extensions/research-tools/ncbi-rate-limit.js";
+import { setRequestTimeoutForTests } from "../extensions/research-tools/science-database-pubmed.js";
 
 type Tool = {
 	execute: (toolCallId: string, params: Record<string, unknown>) => Promise<{ content: Array<{ text: string }>; details: unknown }>;
@@ -17,6 +18,7 @@ afterEach(() => {
 	if (originalApiKey === undefined) delete process.env.NCBI_API_KEY;
 	else process.env.NCBI_API_KEY = originalApiKey;
 	resetNcbiRateLimitForTests();
+	setRequestTimeoutForTests(0);
 });
 
 function registerTools(): Map<string, Tool> {
@@ -142,8 +144,9 @@ test("the PMC ID Converter is never sent the NCBI API key", async () => {
 });
 
 test("the request timeout covers the response body, not just the headers", async () => {
-	// fetch resolves once headers arrive, so clearing the abort timer at that
-	// point leaves a stalled body hanging forever.
+	// fetch resolves once headers arrive. Clearing the abort timer at that point
+	// leaves a stalled body hanging forever, which is the regression this covers.
+	setRequestTimeoutForTests(300);
 	globalThis.fetch = async (_input, init) => {
 		const signal = (init as RequestInit | undefined)?.signal;
 		assert.ok(signal, "expected an abort signal on the request");
@@ -157,12 +160,40 @@ test("the request timeout covers the response body, not just the headers", async
 
 	const tool = registerTools().get("feynman_science_database_search");
 	assert.ok(tool);
+	// Race a deadline so a regression fails the case instead of wedging the run.
 	const outcome = await Promise.race([
-		tool.execute("t", { source: "pubmed", query: "crispr", limit: 1 }).then(() => "resolved", () => "failed"),
-		new Promise((resolve) => setTimeout(() => resolve("hanging"), 800)),
+		tool.execute("t", { source: "pubmed", query: "crispr", limit: 1 }).then(() => "resolved", () => "aborted"),
+		new Promise((resolve) => setTimeout(() => resolve("hung"), 3_000)),
 	]);
-	// It must not resolve with a body it never received. Still pending here is
-	// fine: the real budget is REQUEST_TIMEOUT_MS, and the point of this case is
-	// that the signal is still attached while the body is read.
-	assert.notEqual(outcome, "resolved");
+	assert.equal(outcome, "aborted", "the stalled body was never aborted within the request budget");
+});
+
+test("every NCBI module shares one queue, not just PubMed", async () => {
+	// The budget is per-IP, so gating PubMed alone leaves a mixed turn over the
+	// ceiling: ClinVar and GEO hit the same host from their own modules.
+	process.env.NCBI_API_KEY = "test-ncbi-key";
+	resetNcbiRateLimitForTests();
+	const eutilsStarts: number[] = [];
+	globalThis.fetch = async (input) => {
+		const url = String(input instanceof Request ? input.url : input);
+		if (url.includes("eutils.ncbi.nlm.nih.gov")) eutilsStarts.push(performance.now());
+		if (url.includes("/esearch.fcgi")) return esearch();
+		if (url.includes("/esummary.fcgi")) return esummary();
+		return jsonResponse({ esearchresult: { count: "0", idlist: [] }, result: {}, header: {} });
+	};
+
+	const tool = registerTools().get("feynman_science_database_search");
+	assert.ok(tool);
+	await Promise.allSettled([
+		tool.execute("p1", { source: "pubmed", query: "crispr", limit: 1 }),
+		tool.execute("c1", { source: "clinvar", query: "APOE rs7412", limit: 1 }),
+		tool.execute("c2", { source: "clinvar", query: "TP53 variant", limit: 1 }),
+	]);
+
+	assert.ok(eutilsStarts.length >= 3, `expected several E-utilities requests, saw ${eutilsStarts.length}`);
+	const ordered = [...eutilsStarts].sort((a, b) => a - b);
+	for (let i = 1; i < ordered.length; i += 1) {
+		const gap = ordered[i]! - ordered[i - 1]!;
+		assert.ok(gap >= 100, `an ungated module bypassed the queue (${gap.toFixed(0)}ms gap)`);
+	}
 });
