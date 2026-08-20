@@ -1,4 +1,5 @@
 import { copyrightFromPubmedXml, parseFullTextXml, parsePubmedArticles } from "./science-database-pubmed-parsers.js";
+import { withNcbiRateLimit } from "./ncbi-rate-limit.js";
 
 export type PubMedSearchParams = {
 	limit?: number;
@@ -60,6 +61,18 @@ function cleanQuery(query: string): string {
 
 function ncbiIdentityParams(): Record<string, string> {
 	const email = process.env.NCBI_EMAIL?.trim();
+	const apiKey = process.env.NCBI_API_KEY?.trim();
+	return {
+		tool: "feynman",
+		...(email ? { email } : {}),
+		...(apiKey ? { api_key: apiKey } : {}),
+	};
+}
+
+// The PMC ID Converter is a separate service that documents no api_key support,
+// so it gets identity params without the key.
+function pmcIdentityParams(): Record<string, string> {
+	const email = process.env.NCBI_EMAIL?.trim();
 	return {
 		tool: "feynman",
 		...(email ? { email } : {}),
@@ -76,59 +89,41 @@ function prune<T extends Record<string, unknown>>(record: T): Record<string, unk
 	return Object.fromEntries(Object.entries(record).filter(([, value]) => value !== undefined));
 }
 
+async function send(url: URL, accept: string): Promise<Response> {
+	return withNcbiRateLimit(url, async () => {
+		const controller = new AbortController();
+		const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+		try {
+			return await fetch(url, {
+				headers: {
+					accept,
+					"user-agent": "feynman-pubmed-tools/1.0 (https://github.com/companion-ai/feynman)",
+				},
+				signal: controller.signal,
+			});
+		} finally {
+			clearTimeout(timeout);
+		}
+	});
+}
+
 async function fetchJson(url: URL): Promise<Record<string, unknown>> {
-	const controller = new AbortController();
-	const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
-	try {
-		const response = await fetch(url, {
-			headers: {
-				accept: "application/json",
-				"user-agent": "feynman-pubmed-tools/1.0 (https://github.com/companion-ai/feynman)",
-			},
-			signal: controller.signal,
-		});
-		if (!response.ok) throw new Error(`PubMed request failed: ${response.status} ${response.statusText}`);
-		return recordValue(await response.json());
-	} finally {
-		clearTimeout(timeout);
-	}
+	const response = await send(url, "application/json");
+	if (!response.ok) throw new Error(`PubMed request failed: ${response.status} ${response.statusText}`);
+	return recordValue(await response.json());
 }
 
 async function fetchText(url: URL, accept = "application/xml,text/xml,text/plain,*/*"): Promise<string> {
-	const controller = new AbortController();
-	const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
-	try {
-		const response = await fetch(url, {
-			headers: {
-				accept,
-				"user-agent": "feynman-pubmed-tools/1.0 (https://github.com/companion-ai/feynman)",
-			},
-			signal: controller.signal,
-		});
-		if (!response.ok) throw new Error(`PubMed request failed: ${response.status} ${response.statusText}`);
-		return response.text();
-	} finally {
-		clearTimeout(timeout);
-	}
+	const response = await send(url, accept);
+	if (!response.ok) throw new Error(`PubMed request failed: ${response.status} ${response.statusText}`);
+	return response.text();
 }
 
 async function fetchOptionalText(url: URL, accept = "application/xml,text/xml,*/*"): Promise<{ status: number; text?: string }> {
-	const controller = new AbortController();
-	const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
-	try {
-		const response = await fetch(url, {
-			headers: {
-				accept,
-				"user-agent": "feynman-pubmed-tools/1.0 (https://github.com/companion-ai/feynman)",
-			},
-			signal: controller.signal,
-		});
-		if (response.status === 404) return { status: 404 };
-		if (!response.ok) throw new Error(`PubMed request failed: ${response.status} ${response.statusText}`);
-		return { status: response.status, text: await response.text() };
-	} finally {
-		clearTimeout(timeout);
-	}
+	const response = await send(url, accept);
+	if (response.status === 404) return { status: 404 };
+	if (!response.ok) throw new Error(`PubMed request failed: ${response.status} ${response.statusText}`);
+	return { status: response.status, text: await response.text() };
 }
 
 function queryOptions(query: string): QueryOptions {
@@ -325,7 +320,7 @@ async function convertArticleIds(params: PubMedSearchParams): Promise<Record<str
 		ids: ids.slice(0, MAX_LIMIT).join(","),
 		format: "json",
 		idtype: idType,
-		...ncbiIdentityParams(),
+		...pmcIdentityParams(),
 	}).toString();
 	const payload = await fetchJson(url);
 	const records = listValue(payload.records).map((item) => {
@@ -481,7 +476,7 @@ async function copyrightStatus(params: PubMedSearchParams): Promise<Record<strin
 		ids: pmids.slice(0, MAX_LIMIT).join(","),
 		format: "json",
 		idtype: "pmid",
-		...ncbiIdentityParams(),
+		...pmcIdentityParams(),
 	}).toString();
 	endpoints.push(scrubEndpoint(idconvUrl.toString()));
 	const idconv = await fetchJson(idconvUrl);
