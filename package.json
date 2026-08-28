@@ -62,7 +62,7 @@
     "@clack/prompts": "^1.2.0",
     "@companion-ai/alpha-hub": "^0.1.3",
     "@mariozechner/pi-ai": "^0.66.1",
-    "@mariozechner/pi-coding-agent": "^0.66.1",
+    "@earendil-works/pi-coding-agent": "^0.84.3",
     "@sinclair/typebox": "^0.34.48",
     "dotenv": "^17.3.1"
   },
