@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { existsSync, lstatSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, renameSync, rmSync, writeFileSync } from "node:fs";
-import { dirname, isAbsolute, relative, resolve, sep } from "node:path";
+import { createRequire } from "node:module";
+import { basename, dirname, isAbsolute, relative, resolve, sep } from "node:path";
 import { gunzipSync } from "node:zlib";
 
 // Exact registry esbuild 0.28.2 wrapper/manifest; 23 vendor binary hashes plus
@@ -214,6 +215,45 @@ function assertPlainDirectory(path) {
 	if (!s.isDirectory() || s.isSymbolicLink()) fail(`expected real directory: ${path}`);
 }
 
+function resolvePortableHost(nodeModulesPath, hostName, runtime) {
+	const localModules = realpathSync(nodeModulesPath);
+	const candidates = [];
+	for (let cursor = localModules; ; cursor = dirname(cursor)) {
+		const modules = basename(cursor) === "node_modules" ? cursor : resolve(cursor, "node_modules");
+		if (!candidates.includes(modules)) candidates.push(modules);
+		if (runtime || dirname(cursor) === cursor) break;
+	}
+	// Match the first physical package in the compiler's permitted ancestor
+	// chain. Never fall through an invalid nearer package to a valid outer one.
+	const modules = candidates.find(candidate => {
+		try { lstatSync(resolve(candidate, hostName)); return true; }
+		catch (error) { if (error.code === "ENOENT") return false; throw error; }
+	});
+	if (!modules) fail(`host optional package unavailable in ${runtime ? "runtime-local" : "ancestor node_modules"} scope: ${hostName}`);
+	assertPlainDirectory(modules);
+	assertPlainDirectory(resolve(modules, "@esbuild"));
+	const packageRoot = resolve(modules, hostName);
+	assertPlainDirectory(packageRoot);
+	const manifestPath = resolve(packageRoot, "package.json");
+	if (!regularFile(manifestPath)) fail("linked or missing host platform manifest");
+	const manifest = json(manifestPath), expected = PLATFORM_LOCKS[hostName];
+	if (!expected || manifest.name !== hostName ||
+		JSON.stringify(manifest.os) !== JSON.stringify(expected.os) ||
+		JSON.stringify(manifest.cpu) !== JSON.stringify(expected.cpu)) fail("host platform identity mismatch");
+	const binaryKey = Object.keys(ESBUILD_BINARY_HASHES).find(key => key.startsWith(hostName + "/"));
+	const subpath = binaryKey.slice(hostName.length + 1);
+	const binaryPath = resolve(packageRoot, subpath);
+	assertContained(binaryPath, packageRoot);
+	if (dirname(binaryPath) !== packageRoot) assertPlainDirectory(dirname(binaryPath));
+	const binary = assertEsbuildPlatformPackage(packageRoot);
+	// Actual Node resolution is authoritative, but NODE_PATH/global directories,
+	// symlink escapes and wrapper-local shadows are outside the allowed chain.
+	const compilerRequire = createRequire(resolve(localModules, "esbuild", "lib", "main.js"));
+	const actual = compilerRequire.resolve(`${hostName}/${subpath}`);
+	if (realpathSync(actual) !== realpathSync(binary)) fail("compiler host resolution escapes exact ancestor optional package");
+	return { packageRoot, local: modules === localModules };
+}
+
 function portableFiles(sourcePackagePath, runtime) {
 	assertPlainDirectory(sourcePackagePath);
 	const output = new Map();
@@ -289,11 +329,8 @@ export function patchPiEsbuildPackageTree(nodeModulesPath, sourcePackagePath = r
 		if (JSON.parse(manifestSource).dependencies?.esbuild !== FEYNMAN_ESBUILD_VERSION) fail("runtime must directly pin esbuild 0.28.2");
 	} else assertEsbuildRootManifest(manifestSource);
 	const hostName = `@esbuild/${options.platform ?? process.platform}-${options.arch ?? process.arch}`;
-	const hostRoot = resolve(nodeModulesPath, hostName);
-	assertContained(hostRoot, nodeModulesPath); assertPlainDirectory(hostRoot);
-	if (json(resolve(hostRoot, "package.json")).name !== hostName) fail("host platform identity mismatch");
-	assertEsbuildPlatformPackage(hostRoot);
 	const files = portableFiles(sourcePackagePath, options.runtime === true);
+	const host = resolvePortableHost(nodeModulesPath, hostName, options.runtime === true);
 	const targets = new Set([resolve(nodeModulesPath, "esbuild")]);
 	const metadata = new Map(), removals = new Set(), seenPi = new Set();
 	const chordRoots = new Set([resolve(nodeModulesPath, "@earendil-works", "chord")]);
@@ -343,7 +380,10 @@ export function patchPiEsbuildPackageTree(nodeModulesPath, sourcePackagePath = r
 	for (const path of [resolve(appRoot, "package-lock.json"), resolve(nodeModulesPath, ".package-lock.json")]) {
 		if (existsSync(path)) { assertContained(path, appRoot); const source = readFileSync(path, "utf8"), lock = JSON.parse(source);
 			const hostEntry = lock.packages?.[`node_modules/${hostName}`];
-			if (hostEntry?.version !== FEYNMAN_ESBUILD_VERSION || hostEntry.integrity !== PLATFORM_LOCKS[hostName]?.integrity) fail("root host platform lock identity missing or wrong");
+			// Consumer-hoisted optionals need not appear in Feynman's own lock.
+			// Do not inspect or mutate the ancestor consumer lock to manufacture one.
+			if ((host.local || hostEntry !== undefined) &&
+				(hostEntry?.version !== FEYNMAN_ESBUILD_VERSION || hostEntry.integrity !== PLATFORM_LOCKS[hostName]?.integrity)) fail("root host platform lock identity missing or wrong");
 			metadata.set(path, patchPiEsbuildPackageLockSource(source, options)); }
 	}
 	for (const path of metadata.keys()) {

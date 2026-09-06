@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { cpSync, existsSync, linkSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, renameSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { cpSync, existsSync, linkSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, renameSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
@@ -283,4 +283,102 @@ test("a pruned native root remains portable without requiring or rehydrating dec
 	assert.equal(patchPiEsbuildPackageTree(f.modules), false);
 	rmSync(join(f.top, "lib/main.js"));
 	assert.throws(() => patchPiEsbuildPackageTree(f.modules), /missing or linked source file: lib\/main.js/);
+});
+
+function hoistedFixture(t: TestContext) {
+	const f = fixture(t), consumer = join(f.root, "consumer");
+	const app = join(consumer, "node_modules/@advaitpaliwal/feynman");
+	mkdirSync(dirname(app), { recursive: true }); renameSync(f.app, app);
+	const modules = join(app, "node_modules"), externalHost = join(consumer, "node_modules", host);
+	mkdirSync(dirname(externalHost), { recursive: true });
+	renameSync(join(modules, host), externalHost);
+	write(join(consumer, "package.json"), { name: "consumer", private: true });
+	write(join(consumer, "package-lock.json"), { lockfileVersion: 3, packages: {}, untouched: true });
+	for (const path of [join(app, "package-lock.json"), join(modules, ".package-lock.json")]) {
+		const lock = JSON.parse(readFileSync(path, "utf8"));
+		delete lock.packages[`node_modules/${host}`];
+		write(path, lock);
+	}
+	return { ...f, app, modules, consumer, externalHost, top: join(modules, "esbuild"), pi: join(app, piPrefix), nested: join(app, piPrefix, "node_modules/esbuild") };
+}
+
+for (const ownLock of [false, true]) test(`consumer-hoisted host compiles read-only with own lock ${ownLock}`, (t) => {
+	const f = hoistedFixture(t), binary = assertEsbuildPlatformPackage(f.externalHost);
+	if (!ownLock) {
+		rmSync(join(f.app, "package-lock.json"));
+		rmSync(join(f.modules, ".package-lock.json"));
+	}
+	const untouched = [binary, join(f.externalHost, "package.json"), join(f.consumer, "package.json"), join(f.consumer, "package-lock.json")];
+	const snapshots = untouched.map(p => digest(readFileSync(p)));
+	const compiler = createRequire(join(f.top, "lib/main.js"));
+	const subpath = process.platform === "win32" ? "esbuild.exe" : "bin/esbuild";
+	assert.equal(realpathSync(compiler.resolve(`${host}/${subpath}`)), realpathSync(binary));
+	// Also retain a bundled foreign-platform package: it is not the consumer's
+	// selected host, and must neither be required nor rewritten by normalization.
+	const foreign = host === "@esbuild/darwin-arm64" ? "@esbuild/linux-x64" : "@esbuild/darwin-arm64";
+	const foreignManifest = join(f.modules, foreign, "package.json");
+	write(foreignManifest, { name: foreign, version: "0.28.2" });
+	const foreignBefore = readFileSync(foreignManifest);
+	// Simulate postinstall optimization hard-linking the CLI outside Feynman.
+	rmSync(join(f.top, "bin/esbuild")); linkSync(binary, join(f.top, "bin/esbuild"));
+	assert.equal(patchPiEsbuildPackageTree(f.modules), true);
+	assert.equal(patchPiEsbuildPackageTree(f.modules), false);
+	assert.equal(existsSync(join(f.modules, host)), false);
+	assert.deepEqual(untouched.map(p => digest(readFileSync(p))), snapshots);
+	assert.deepEqual(readFileSync(foreignManifest), foreignBefore);
+	const env = { ...process.env }; delete env.ESBUILD_BINARY_PATH;
+	const run = spawnSync(process.execPath, ["-e", `
+		const assert = require("node:assert/strict");
+		const e = require(${JSON.stringify(f.nested)});
+		assert.equal(e.version, "0.28.2");
+		assert.match(e.transformSync("const x: number = 42", {loader:"ts"}).code, /x = 42/);
+		e.stop();
+	`], { encoding: "utf8", env, timeout: 15000 });
+	assert.equal(run.status, 0, run.stderr);
+	const cli = spawnSync(process.execPath, [join(f.nested, "bin/esbuild"), "--loader=ts"], {
+		input: "let y: number = 7", encoding: "utf8", env, timeout: 15000,
+	});
+	assert.equal(cli.status, 0, cli.stderr); assert.match(cli.stdout, /y = 7/);
+	assert.deepEqual(untouched.map(p => digest(readFileSync(p))), snapshots);
+});
+
+test("runtime mode rejects hoisted host and root mode rejects a nearer wrong-version shadow", (t) => {
+	const f = hoistedFixture(t), before = readFileSync(join(f.pi, "npm-shrinkwrap.json"));
+	assert.throws(() => patchPiEsbuildPackageTree(f.modules, f.top, { runtime: true }), /runtime-local/);
+	const nearer = join(f.modules, host);
+	cpSync(f.externalHost, nearer, { recursive: true });
+	const manifestPath = join(nearer, "package.json"), manifest = JSON.parse(readFileSync(manifestPath, "utf8"));
+	manifest.version = "0.28.1"; write(manifestPath, manifest);
+	assert.throws(() => patchPiEsbuildPackageTree(f.modules), /unreviewed esbuild platform package/);
+	assert.deepEqual(readFileSync(join(f.pi, "npm-shrinkwrap.json")), before);
+});
+
+test("hoisted binary corruption and linked host package cannot escape read-only preflight", (t) => {
+	const f = hoistedFixture(t), binary = assertEsbuildPlatformPackage(f.externalHost);
+	const before = readFileSync(join(f.pi, "npm-shrinkwrap.json"));
+	writeFileSync(binary, "corrupted");
+	assert.throws(() => patchPiEsbuildPackageTree(f.modules), /binary digest mismatch/);
+	assert.deepEqual(readFileSync(join(f.pi, "npm-shrinkwrap.json")), before);
+	rmSync(f.externalHost, { recursive: true });
+	symlinkSync(hostSource, f.externalHost, "dir");
+	assert.throws(() => patchPiEsbuildPackageTree(f.modules), /real directory/);
+	assert.deepEqual(readFileSync(join(f.pi, "npm-shrinkwrap.json")), before);
+});
+
+test("NODE_PATH-only host is rejected even when Node's unrestricted compiler lookup succeeds", (t) => {
+	const f = hoistedFixture(t), globalModules = join(f.root, "not-an-ancestor/node_modules");
+	const external = join(globalModules, host);
+	mkdirSync(dirname(external), { recursive: true }); renameSync(f.externalHost, external);
+	const helper = pathToFileURL(resolve("scripts/lib/pi-esbuild-package-patch.mjs")).href;
+	const subpath = process.platform === "win32" ? "esbuild.exe" : "bin/esbuild";
+	const child = spawnSync(process.execPath, ["--input-type=module", "-e", `
+		import assert from "node:assert/strict";
+		import { createRequire } from "node:module";
+		import { realpathSync } from "node:fs";
+		import { patchPiEsbuildPackageTree } from ${JSON.stringify(helper)};
+		const r = createRequire(${JSON.stringify(join(f.top, "lib/main.js"))});
+		assert.equal(realpathSync(r.resolve(${JSON.stringify(`${host}/${subpath}`)})), realpathSync(${JSON.stringify(join(external, subpath))}));
+		assert.throws(() => patchPiEsbuildPackageTree(${JSON.stringify(f.modules)}), /host optional package unavailable/);
+	`], { encoding: "utf8", env: { ...process.env, NODE_PATH: globalModules }, timeout: 15000 });
+	assert.equal(child.status, 0, child.stderr);
 });
