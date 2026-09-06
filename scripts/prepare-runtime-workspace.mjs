@@ -10,7 +10,7 @@ import {
 } from "./lib/pi-cli-args-patch.mjs";
 import {
 	assertPiEditLineEndingsVersion,
-	PI_EDIT_LINE_ENDINGS_RUNTIME_TARGETS,
+	PI_EDIT_LINE_ENDINGS_PATCH_TARGETS,
 	patchPiEditLineEndingsSource,
 } from "./lib/pi-edit-line-endings-patch.mjs";
 import {
@@ -726,7 +726,7 @@ function patchBundledPiEditLineEndings() {
 			readFileSync(resolve(packageRoot, "package.json"), "utf8"),
 		).version;
 		assertPiEditLineEndingsVersion(version, `runtime workspace ${scope}/pi-coding-agent`);
-		for (const relativePath of PI_EDIT_LINE_ENDINGS_RUNTIME_TARGETS) {
+		for (const relativePath of PI_EDIT_LINE_ENDINGS_PATCH_TARGETS) {
 			changed = patchScopedPiWorkspaceFile(
 				"pi-coding-agent",
 				relativePath,
