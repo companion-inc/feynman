@@ -17,6 +17,10 @@ const repository = "advaitpaliwal/feynman";
 const publisherPath = ".github/workflows/publish.yml";
 const sha = "a".repeat(40);
 const newerSha = "b".repeat(40);
+// These executable fixtures model the Ubuntu-only GitHub deployment shell.
+const deploymentShell = {
+	skip: process.platform === "win32" ? "Deployment shell targets Ubuntu/POSIX" : false,
+};
 
 function trustedEvent() {
 	return {
@@ -178,7 +182,7 @@ test("only successful same-repository main pushes or main manual dispatches qual
 	}
 });
 
-test("initiating SHA is validated before API access without falling back to the default branch", () => {
+test("initiating SHA is validated before API access without falling back to the default branch", deploymentShell, () => {
 	const name = "Validate initiating event SHA";
 	assert.equal(runStep(name, { GITHUB_EVENT_NAME: "workflow_run", RELEASE_SHA: sha, MANUAL_SHA: newerSha }).output, `sha=${sha}\n`);
 	assert.equal(runStep(name, { GITHUB_EVENT_NAME: "workflow_dispatch", MANUAL_SHA: newerSha }).output, `sha=${newerSha}\n`);
@@ -202,7 +206,7 @@ test("initiating SHA is validated before API access without falling back to the 
 	assert.equal(setup.with["node-version-file"], ".nvmrc");
 });
 
-test("current main is qualified by exact publisher identity and paginated API evidence", () => {
+test("current main is qualified by exact publisher identity and paginated API evidence", deploymentShell, () => {
 	const result = runStep("Resolve current qualified main", {
 		INITIATING_SHA: newerSha,
 		MOCK_API_PAGES: JSON.stringify([{ workflow_runs: [] }, { workflow_runs: [publisher()] }]),
@@ -218,7 +222,7 @@ test("current main is qualified by exact publisher identity and paginated API ev
 	]);
 });
 
-test("absent, failed, fork, wrong-SHA or other-workflow publishers never qualify main", () => {
+test("absent, failed, fork, wrong-SHA or other-workflow publishers never qualify main", deploymentShell, () => {
 	for (const change of [
 		{ status: "in_progress" }, { status: null }, { conclusion: "failure" },
 		{ conclusion: "cancelled" }, { conclusion: null }, { event: "pull_request" },
@@ -249,7 +253,7 @@ test("absent, failed, fork, wrong-SHA or other-workflow publishers never qualify
 	}
 });
 
-test("API errors, malformed main refs and unresolved publisher identities fail closed before checkout", () => {
+test("API errors, malformed main refs and unresolved publisher identities fail closed before checkout", deploymentShell, () => {
 	for (const env of [
 		{ MOCK_API_FAIL_ENDPOINT: "git/ref/heads/main" },
 		{ MOCK_API_FAIL_ENDPOINT: "actions/workflows/publish.yml" },
@@ -275,7 +279,7 @@ test("API errors, malformed main refs and unresolved publisher identities fail c
 	}
 });
 
-test("delayed A replaces pending B but the surviving serialized invocation deploys qualified B", () => {
+test("delayed A replaces pending B but the surviving serialized invocation deploys qualified B", deploymentShell, () => {
 	assert.equal(workflow.concurrency["cancel-in-progress"], false);
 	// Model GitHub's default single-pending-slot replacement, not a live scheduler.
 	const active = { name: "A active", event: "workflow_run", initiatingSha: sha };
@@ -337,7 +341,7 @@ test("delayed A replaces pending B but the surviving serialized invocation deplo
 	}
 });
 
-test("npm gate requires the exact personal manifest version and fails closed", () => {
+test("npm gate requires the exact personal manifest version and fails closed", deploymentShell, () => {
 	const name = "Require the personal npm release";
 	const result = runStep(name);
 	assert.equal(result.status, 0);
@@ -351,7 +355,7 @@ test("npm gate requires the exact personal manifest version and fails closed", (
 	}
 });
 
-test("freshness gate skips outdated sources and rejects missing refs or network errors", () => {
+test("freshness gate skips outdated sources and rejects missing refs or network errors", deploymentShell, () => {
 	const name = "Skip superseded source before upload";
 	assert.equal(runStep(name, { SOURCE_SHA: sha }).output, "deploy=true\n");
 	const stale = runStep(name, { SOURCE_SHA: sha, MOCK_MAIN: newerSha });
@@ -372,7 +376,7 @@ test("freshness gate skips outdated sources and rejects missing refs or network 
 	});
 });
 
-test("only the final guarded upload gets the token, after build and pinned tool installation", () => {
+test("only the final guarded upload gets the token, after build and pinned tool installation", deploymentShell, () => {
 	assert.deepEqual(workflow.permissions, { contents: "read", actions: "read" });
 	assert.deepEqual(workflow.env, { FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true" });
 	assert.equal(job.env, undefined);
