@@ -517,9 +517,7 @@ function linkBundledPackage(packageName) {
 		return false;
 	}
 }
-function ensureBundledPackageLinks(packageSpecs) {
-	if (!workspaceMatchesRuntime(packageSpecs)) return;
-
+function ensureBundledPackageLinks() {
 	const packageNames = listWorkspacePackageNames(workspaceRoot);
 	pruneStaleBundledPackageLinks(packageNames);
 	for (const packageName of packageNames) {
@@ -625,7 +623,7 @@ function ensurePackageWorkspaceUnlocked(heartbeat) {
 		reconcileRuntimeWorkspaceRestoreArtifacts(workspaceDir, {
 			workspaceIsHealthy: true,
 		});
-		ensureBundledPackageLinks(supportedPackageSpecs);
+		ensureBundledPackageLinks();
 		return;
 	}
 	let packagedRestore;
@@ -646,7 +644,7 @@ function ensurePackageWorkspaceUnlocked(heartbeat) {
 		);
 	}
 	if (packagedRestore.restored && workspaceMatchesRuntime(supportedPackageSpecs)) {
-		ensureBundledPackageLinks(supportedPackageSpecs);
+		ensureBundledPackageLinks();
 		return;
 	}
 	let installSeed = packagedRestore.installSeed;
@@ -663,7 +661,7 @@ function ensurePackageWorkspaceUnlocked(heartbeat) {
 			sourceRestore.restored &&
 			workspaceMatchesRuntime(supportedPackageSpecs)
 		) {
-			ensureBundledPackageLinks(supportedPackageSpecs);
+			ensureBundledPackageLinks();
 			return;
 		}
 		installSeed = sourceRestore.installSeed;
@@ -733,7 +731,7 @@ function ensurePackageWorkspaceUnlocked(heartbeat) {
 				"Feynman restored an incomplete bundled research runtime.",
 			);
 		}
-		ensureBundledPackageLinks(supportedPackageSpecs);
+		ensureBundledPackageLinks();
 	}
 }
 
