@@ -67,7 +67,7 @@ jobs:
               cd "$provenance_dir"
               npm init -y >/dev/null
               npm install --ignore-scripts --omit=dev --no-audit "@advaitpaliwal/feynman@$LOCAL" >/dev/null
-              npx --yes npm@11.18.0 audit signatures --json --include-attestations > audit-signatures.json
+              npx --yes npm@12.0.2 audit signatures --json --include-attestations > audit-signatures.json
             )
             PUBLISHED_SOURCE_SHA=$(node scripts/verify-npm-provenance.mjs \
               "$provenance_dir/audit-signatures.json" \
@@ -324,13 +324,13 @@ jobs:
           - os: ubuntu-latest
             node: "22.22.0"
           - os: ubuntu-latest
-            node: "24.18.0"
+            node: "24.20.0"
           - os: ubuntu-latest
             node: "25"
           - os: macos-14
-            node: "24.18.0"
+            node: "24.20.0"
           - os: windows-latest
-            node: "24.18.0"
+            node: "24.20.0"
           - os: windows-latest
             node: "25"
     runs-on: ${{ matrix.os }}
@@ -355,6 +355,9 @@ jobs:
           tarball=$(find npm-package -type f -name '*.tgz' -print)
           tarball=$(node -e 'process.stdout.write(require("node:path").resolve(process.argv[1]))' "$tarball")
           consumer="$RUNNER_TEMP/feynman-consumer"
+          if command -v cygpath >/dev/null 2>&1; then
+            consumer=$(cygpath -u "$consumer")
+          fi
           mkdir -p "$consumer"
           (cd "$consumer" && npm init -y >/dev/null)
           npm install --prefix "$consumer" --omit=dev --no-audit "$tarball"
@@ -396,6 +399,8 @@ jobs:
           if command -v cygpath >/dev/null 2>&1; then
             global_node_modules=$(cygpath -u "$global_node_modules")
           fi
+          node "$global_node_modules/@advaitpaliwal/feynman/scripts/verify-package-artifact.mjs" \
+            "$global_node_modules/@advaitpaliwal/feynman"
           node "$global_node_modules/@advaitpaliwal/feynman/scripts/verify-installed-runtime.mjs" "$global_bin"
           node "$global_node_modules/@advaitpaliwal/feynman/scripts/verify-installed-docparser.mjs"
 
@@ -454,7 +459,7 @@ jobs:
               cd "$provenance_dir"
               npm init -y >/dev/null
               npm install --ignore-scripts --omit=dev --no-audit "@advaitpaliwal/feynman@$LOCAL" >/dev/null
-              npx --yes npm@11.18.0 audit signatures --json --include-attestations > audit-signatures.json
+              npx --yes npm@12.0.2 audit signatures --json --include-attestations > audit-signatures.json
             )
             published_source_sha=$(node scripts/verify-npm-provenance.mjs \
               "$provenance_dir/audit-signatures.json" \
@@ -471,7 +476,7 @@ jobs:
             echo "@advaitpaliwal/feynman@$LOCAL already matches this verified commit and tarball; skipping npm publish."
             exit 0
           fi
-          npx npm@11.18.0 publish "$tarball" --access public --provenance
+          npx npm@12.0.2 publish "$tarball" --access public --provenance
 
   build-native-bundles:
     needs:
@@ -518,6 +523,7 @@ jobs:
           "$bundle/feynman" --help >/tmp/feynman-help.out
           head -20 /tmp/feynman-help.out
           node scripts/verify-stale-pi-upgrade.mjs "$bundle/feynman"
+          "$bundle/node/bin/node" "$bundle/app/scripts/verify-package-artifact.mjs" "$bundle/app" --pruned-native
           "$bundle/node/bin/node" "$bundle/app/scripts/verify-installed-runtime.mjs" "$bundle/feynman"
           "$bundle/node/bin/node" "$bundle/app/scripts/verify-installed-docparser.mjs"
       - name: Smoke native bundle (Windows)
@@ -540,6 +546,12 @@ jobs:
           node scripts/verify-stale-pi-upgrade.mjs (Join-Path $bundleRoot "feynman.cmd")
           if ($LASTEXITCODE -ne 0) {
             throw "Windows native launcher failed stale-Pi upgrade smoke: $LASTEXITCODE"
+          }
+          & (Join-Path $bundleRoot "node/node.exe") `
+            (Join-Path $bundleRoot "app/scripts/verify-package-artifact.mjs") `
+            (Join-Path $bundleRoot "app") --pruned-native
+          if ($LASTEXITCODE -ne 0) {
+            throw "Windows native artifact source contracts failed: $LASTEXITCODE"
           }
           & (Join-Path $bundleRoot "node/node.exe") `
             (Join-Path $bundleRoot "app/scripts/verify-installed-runtime.mjs") `
@@ -767,7 +779,7 @@ jobs:
           done
           (
             cd "$consumer"
-            npx --yes npm@11.18.0 audit signatures --json --include-attestations > audit-signatures.json
+            npx --yes npm@12.0.2 audit signatures --json --include-attestations > audit-signatures.json
           )
           published_source_sha=$(node scripts/verify-npm-provenance.mjs \
             "$consumer/audit-signatures.json" \
@@ -818,6 +830,8 @@ jobs:
           test "$("$global_bin" --version | tail -1)" = "$VERSION"
           "$global_bin" --help >/dev/null
           global_node_modules=$(npm root --global --prefix "$global_prefix")
+          node "$global_node_modules/@advaitpaliwal/feynman/scripts/verify-package-artifact.mjs" \
+            "$global_node_modules/@advaitpaliwal/feynman"
           node "$global_node_modules/@advaitpaliwal/feynman/scripts/verify-installed-runtime.mjs" "$global_bin"
           node "$global_node_modules/@advaitpaliwal/feynman/scripts/verify-installed-docparser.mjs"
 
@@ -872,6 +886,8 @@ jobs:
           test "$("$native" --version | tail -1)" = "$VERSION"
           "$native" --help >/dev/null
           native_bundle_root="$native_root/feynman-$VERSION-linux-x64"
+          "$native_bundle_root/node/bin/node" \
+            "$native_bundle_root/app/scripts/verify-package-artifact.mjs" "$native_bundle_root/app" --pruned-native
           "$native_bundle_root/node/bin/node" \
             "$native_bundle_root/app/scripts/verify-installed-runtime.mjs" \
             "$native"

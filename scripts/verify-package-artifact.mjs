@@ -1,3 +1,5 @@
+import { assertAlphaHubAuthSource } from "./lib/alpha-hub-auth-patch.mjs";
+import { assertAlphaHubSearchSource, assertAlphaHubSearchResultsSource } from "./lib/alpha-hub-search-patch.mjs";
 import { existsSync, readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { resolve } from "node:path";
@@ -54,7 +56,7 @@ const packageRoot = resolve(process.argv[2] ?? resolve(import.meta.dirname, ".."
 const prunedNative = process.argv.includes("--pruned-native");
 const packageRequire = createRequire(resolve(packageRoot, "package.json"));
 const FEYNMAN_BRACE_EXPANSION_VERSION = "5.0.9";
-const FEYNMAN_IP_ADDRESS_VERSION = "10.5.0";
+const FEYNMAN_IP_ADDRESS_VERSION = "10.7.0";
 const FEYNMAN_PI_DOCPARSER_VERSION = "4.0.0";
 const PI_INTERACTIVE_UPDATE_NOTICE_MARKER = "// Feynman: package update notices use the full update command.";
 const PI_INTERACTIVE_UPDATE_NOTICE_ACTION = 'const action = theme.fg("accent", `${APP_NAME} update`);';
@@ -450,46 +452,25 @@ assertPiInteractiveUpdateNoticeSource(
 	"bundled Pi interactive update notice",
 );
 
-const alphaLib = resolve(packageRoot, "node_modules", "@companion-ai", "alpha-hub", "src", "lib");
-requireMarkers(
-	readText(resolve(alphaLib, "auth.js"), "bundled alpha-hub auth"),
-	"bundled alpha-hub auth",
-	[
-		"https://api.alphaxiv.org/auth",
-		"/oauth2/authorize",
-		"waitForCallback(server, state)",
-		"OAuth state mismatch",
-	],
-);
-requireMarkers(
-	readText(resolve(alphaLib, "alphaxiv.js"), "bundled alpha-hub search"),
-	"bundled alpha-hub search",
-	[
-		"async function searchRestFast(",
-		"return await fallbackSearch(",
-		"return await callTool('answer_pdf_queries', { paper: url, queries: [query] });",
-	],
-);
-requireMarkers(
-	readText(resolve(alphaLib, "index.js"), "bundled alpha-hub parser"),
-	"bundled alpha-hub parser",
-	["function parseStructuredSearchResults("],
-);
+const alphaLib = resolve(packageRoot, "node_modules", "@advaitpaliwal", "alpha-hub", "src", "lib");
+assertAlphaHubAuthSource(readText(resolve(alphaLib, "auth.js"), "bundled alpha-hub auth"));
+assertAlphaHubSearchSource(readText(resolve(alphaLib, "alphaxiv.js"), "bundled alpha-hub search"));
+assertAlphaHubSearchResultsSource(readText(resolve(alphaLib, "index.js"), "bundled alpha-hub parser"));
 
 const mcpManifest = readJson(
 	resolve(packageRoot, "node_modules", "@modelcontextprotocol", "sdk", "package.json"),
 	"bundled MCP SDK manifest",
 );
-if (mcpManifest.dependencies?.["@hono/node-server"] !== "2.0.12") {
-	fail("bundled MCP SDK does not pin @hono/node-server 2.0.12");
+if (mcpManifest.dependencies?.["@hono/node-server"] !== "2.1.1") {
+	fail("bundled MCP SDK does not pin @hono/node-server 2.1.1");
 }
 if (
 	readJson(
 		resolve(packageRoot, "node_modules", "@hono", "node-server", "package.json"),
 		"bundled Hono node server manifest",
-	).version !== "2.0.12"
+	).version !== "2.1.1"
 ) {
-	fail("bundled Hono node server is not 2.0.12");
+	fail("bundled Hono node server is not 2.1.1");
 }
 for (const [label, path] of [
 	[
@@ -551,17 +532,17 @@ const runtimeLockSource = readText(runtimeLockPath, "committed runtime package l
 const runtimeLock = JSON.parse(runtimeLockSource);
 verifyPiTelemetryRuntimeLockContract(runtimeLock, expectedPiVersion, fail);
 const expectedPiWebAccessVersion = runtimeLock.packages?.[""]?.dependencies?.["pi-web-access"];
-if (expectedPiWebAccessVersion !== "0.25.0") {
-	fail("committed runtime lock does not pin pi-web-access 0.25.0");
+if (expectedPiWebAccessVersion !== "0.28.0") {
+	fail("committed runtime lock does not pin pi-web-access 0.28.0");
 }
 const expectedPiDocparserVersion = runtimeLock.packages?.[""]?.dependencies?.["pi-docparser"];
 if (expectedPiDocparserVersion !== FEYNMAN_PI_DOCPARSER_VERSION) {
 	fail(`committed runtime lock does not pin pi-docparser ${FEYNMAN_PI_DOCPARSER_VERSION}`);
 }
 if (
-	runtimeLock.packages?.["node_modules/@hono/node-server"]?.version !== "2.0.12"
+	runtimeLock.packages?.["node_modules/@hono/node-server"]?.version !== "2.1.1"
 ) {
-	fail("committed runtime lock does not pin @hono/node-server 2.0.12");
+	fail("committed runtime lock does not pin @hono/node-server 2.1.1");
 }
 if (runtimeLock.packages?.["node_modules/ip-address"]?.version !== FEYNMAN_IP_ADDRESS_VERSION) {
 	fail(`committed runtime lock does not resolve ip-address ${FEYNMAN_IP_ADDRESS_VERSION}`);
@@ -803,21 +784,14 @@ requireMarkers(
 		'const cursor = "\\x1b[7m \\x1b[27m"',
 	],
 );
-for (const [fileName, label, markers] of [
-	["auth.js", "auth", ["https://api.alphaxiv.org/auth", "waitForCallback(server, state)", "OAuth state mismatch"]],
-	["alphaxiv.js", "client", [
-		"async function searchRestFast(",
-		"return await fallbackSearch(",
-		"return await callTool('answer_pdf_queries', { paper: url, queries: [query] });",
-	]],
-	["index.js", "parser", ["function parseStructuredSearchResults("]],
+for (const [fileName, assertSource] of [
+	["auth.js", assertAlphaHubAuthSource],
+	["alphaxiv.js", assertAlphaHubSearchSource],
+	["index.js", assertAlphaHubSearchResultsSource],
 ]) {
-	requireMarkers(
-		readArchivedText(archivePath, `npm/node_modules/@companion-ai/alpha-hub/src/lib/${fileName}`),
-		`runtime alpha-hub ${label}`,
-		markers,
-	);
+	assertSource(readArchivedText(archivePath, `npm/node_modules/@advaitpaliwal/alpha-hub/src/lib/${fileName}`));
 }
+
 requireMarkers(
 	readArchivedText(
 		archivePath,
@@ -971,7 +945,7 @@ requireMarkers(
 	webPageQuerySource,
 	"runtime pi-web-access page-answer model scope",
 	[
-		'import { modelMatchesScopedModels } from "./summary-model-scope.ts";',
+		'import { findModelWithProviderRouting, modelMatchesScopedModels } from "./summary-model-scope.ts";',
 		"modelMatchesScopedModels(model, ctx.scopedModels)",
 	],
 );
@@ -1140,17 +1114,17 @@ if (
 	readArchivedJson(
 		archivePath,
 		"npm/node_modules/@modelcontextprotocol/sdk/package.json",
-	).dependencies?.["@hono/node-server"] !== "2.0.12"
+	).dependencies?.["@hono/node-server"] !== "2.1.1"
 ) {
-	fail("runtime MCP SDK does not pin @hono/node-server 2.0.12");
+	fail("runtime MCP SDK does not pin @hono/node-server 2.1.1");
 }
 if (
 	readArchivedJson(
 		archivePath,
 		"npm/node_modules/@hono/node-server/package.json",
-	).version !== "2.0.12"
+	).version !== "2.1.1"
 ) {
-	fail("runtime Hono node server is not 2.0.12");
+	fail("runtime Hono node server is not 2.1.1");
 }
 for (const [label, entryPath] of [
 	["runtime root brace-expansion", "npm/node_modules/brace-expansion/package.json"],

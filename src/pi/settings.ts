@@ -1,5 +1,5 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { dirname } from "node:path";
+import { dirname, join } from "node:path";
 
 import type { ModelRegistry, ModelRuntime, PackageSource } from "@earendil-works/pi-coding-agent";
 
@@ -110,6 +110,51 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 	return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }
 
+function readConfigObject(path: string, label: string): { source: string; value: Record<string, unknown> } {
+	const source = readFileSync(path, "utf8");
+	let value: unknown;
+	try {
+		value = JSON.parse(source);
+	} catch {
+		throw new Error(`Invalid ${label} at ${path}: expected a JSON object. The file was not changed.`);
+	}
+	if (!isRecord(value)) {
+		throw new Error(`Invalid ${label} at ${path}: expected a JSON object. The file was not changed.`);
+	}
+	return { source, value };
+}
+
+function prepareSubagentDefaults(settingsPath: string) {
+	// cli.ts passes <feynmanAgentDir>/settings.json. Do not derive this from
+	// HOME, authPath, the project cwd, or a potentially unrelated Pi env var.
+	const path = join(dirname(settingsPath), "extensions", "subagent", "config.json");
+	const existing = existsSync(path) ? readConfigObject(path, "subagent config") : undefined;
+	const config = existing?.value ?? {};
+	if (config.missions !== undefined && !isRecord(config.missions)) {
+		throw new Error(`Invalid subagent config at ${path}: missions must be an object. The file was not changed.`);
+	}
+	const missions = config.missions ?? {};
+	for (const [key, value] of [
+		["missions.enabled", missions.enabled],
+		["fleetView", config.fleetView],
+		["asyncByDefault", config.asyncByDefault],
+	] as const) {
+		if (value !== undefined && typeof value !== "boolean") {
+			throw new Error(`Invalid subagent config at ${path}: ${key} must be a boolean. The file was not changed.`);
+		}
+	}
+	if (missions.enabled !== undefined && config.fleetView !== undefined && config.asyncByDefault !== undefined) {
+		return undefined;
+	}
+	const next = {
+		...config,
+		missions: { ...missions, enabled: missions.enabled ?? false },
+		fleetView: config.fleetView ?? false,
+		asyncByDefault: config.asyncByDefault ?? true,
+	};
+	return { path, original: existing?.source, content: `${JSON.stringify(next, null, 2)}\n` };
+}
+
 function ensureResearcherExtension(
 	settings: Record<string, unknown>,
 	researchToolsExtensionPath: string | undefined,
@@ -149,20 +194,15 @@ export async function normalizeFeynmanSettings(
 	authPath: string,
 	runtime: FeynmanSettingsRuntime = {},
 ): Promise<void> {
+	// Validate before model discovery or either settings write. Invalid custom
+	// configuration must not silently turn into an empty/default configuration.
+	const subagentDefaults = prepareSubagentDefaults(settingsPath);
 	let settings: Record<string, unknown> = {};
 
 	if (existsSync(settingsPath)) {
-		try {
-			settings = JSON.parse(readFileSync(settingsPath, "utf8"));
-		} catch {
-			settings = {};
-		}
+		settings = readConfigObject(settingsPath, "Feynman settings").value;
 	} else if (existsSync(bundledSettingsPath)) {
-		try {
-			settings = JSON.parse(readFileSync(bundledSettingsPath, "utf8"));
-		} catch {
-			settings = {};
-		}
+		settings = readConfigObject(bundledSettingsPath, "bundled Feynman settings").value;
 	}
 
 	if (!settings.defaultThinkingLevel) {
@@ -208,6 +248,16 @@ export async function normalizeFeynmanSettings(
 		delete settings.defaultModel;
 	}
 
+	if (subagentDefaults) {
+		const current = existsSync(subagentDefaults.path) ? readFileSync(subagentDefaults.path, "utf8") : undefined;
+		if (current !== subagentDefaults.original) {
+			throw new Error(`Subagent config changed during settings normalization: ${subagentDefaults.path}. Retry without overwriting it.`);
+		}
+		mkdirSync(dirname(subagentDefaults.path), { recursive: true });
+		writeFileSync(subagentDefaults.path, subagentDefaults.content, {
+			encoding: "utf8", mode: 0o600, flag: subagentDefaults.original === undefined ? "wx" : "w",
+		});
+	}
 	mkdirSync(dirname(settingsPath), { recursive: true });
 	writeFileSync(settingsPath, JSON.stringify(settings, null, 2) + "\n", "utf8");
 }

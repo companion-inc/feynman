@@ -9,6 +9,17 @@ This page summarizes what changed in recent Feynman releases. GitHub releases us
 
 ## Unreleased
 
+## v0.3.49 - 2026-09-06
+
+### Research runtime refresh
+
+- Updated the coordinated Pi runtime to 0.85.1, retaining Feynman's provider identity checks, research-session continuity, bounded compaction, private state files, and tool/telemetry safeguards.
+- Updated native bundles to Node 24.20.0 and the research runtime compiler to esbuild 0.28.2. Kept portable npm installs within the existing package budget by removing redundant compiler binaries and dependency source maps, not platform support.
+- Updated web research to pi-web-access 0.28.0 with bounded batch searches, retrievable response IDs, citation preservation, and session-scoped page-answer models. Browser cookies and new paid providers remain opt-in.
+- Updated pi-subagents to 0.65.1. Research delegation now uses async workflow scripts with `runs.run` / `runs.all`; obsolete top-level `tasks` / `chain` parameters and `/chain` / `/parallel` commands are replaced by the documented workflow interface. Existing user settings are preserved; fresh installs disable automatic missions and Fleet UI.
+- Moved the bundled paper tools to `@advaitpaliwal/alpha-hub@0.1.4`, including the current alphaXiv OAuth/MCP API and result parser. Updated LiteParse to 2.14.3 while retaining document integrity checks.
+- Refreshed the CLI, scientific viewers, telemetry, and website dependencies. The CLI builds with TypeScript 7; the website retains TypeScript 6 because its current Astro/ESLint integrations require the older compiler API. Preserved supported dependency majors and upstream-required pins rather than forcing incompatible upgrades.
+
 ## v0.3.48 - 2026-09-06
 
 ### Installation and source reliability

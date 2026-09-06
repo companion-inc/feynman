@@ -20,14 +20,15 @@ import {
 
 const PI_WEB_ACCESS_FIXTURE_ROOT = join(
 	import.meta.dirname,
+	"..",
 	"fixtures",
-	"pi-web-access-0.25.0",
+	"pi-web-access-0.28.0",
 );
 const PI_WEB_ACCESS_FORWARD_FIXTURE_ROOT = join(
 	import.meta.dirname,
 	"..",
 	"fixtures",
-	"pi-web-access-0.25.0",
+	"pi-web-access-0.28.0",
 );
 const PI_WEB_ACCESS_RUNTIME_ROOT = join(
 	import.meta.dirname,
@@ -45,7 +46,7 @@ function readPiWebAccessFixtureSources(): Map<string, string> {
 			readFileSync(
 				PI_WEB_ACCESS_FORWARD_FILE_TARGETS.includes(relativePath)
 					? join(PI_WEB_ACCESS_FORWARD_FIXTURE_ROOT, relativePath)
-					: join(PI_WEB_ACCESS_FIXTURE_ROOT, `${relativePath}.fixture`),
+					: join(PI_WEB_ACCESS_FIXTURE_ROOT, relativePath),
 				"utf8",
 			),
 		]),
@@ -264,14 +265,14 @@ test("exact pi-web-access fixture ports the three focused upstream reliability f
 	assert.doesNotMatch(extractSource, /return Promise\.all\(urls\.map/);
 });
 
-test("model-aware auto routing matches reviewed pi-web-access 0.25.0 exactly", () => {
+test("model-aware auto routing matches reviewed pi-web-access 0.28.0 exactly", () => {
 	const expected = new Map([
-		["gemini-search.ts", "83fcf770ff9562bfef2179d64d6cae8eba19e540efe9eda6c6a8085a19870c41"],
-		["index.ts", "80d4f01fe7db1c0f095a60d9aa2c9fe3ebee675d988affced30da935554a0127"],
+		["gemini-search.ts", "9fd49a6d9aca00dfb9983c658edc9002fc84ad9970726eb8eb91d7bd1396ae08"],
+		["index.ts", "afa4d45481b0451ce85fadde6f89a112bc141d714cc164819dd835af320de8a9"],
 	]);
 	for (const [relativePath, expectedDigest] of expected) {
 		const baseline = readFileSync(
-			join(PI_WEB_ACCESS_FIXTURE_ROOT, `${relativePath}.fixture`),
+			join(PI_WEB_ACCESS_FIXTURE_ROOT, relativePath),
 			"utf8",
 		);
 		const forwarded = patchPiWebAccessForwardFixSource(relativePath, baseline);
@@ -288,10 +289,10 @@ test("model-aware auto routing matches reviewed pi-web-access 0.25.0 exactly", (
 	}
 });
 
-test("exact pi-web-access fixture keeps 0.25.0 retrieval and clone protections", () => {
+test("exact pi-web-access fixture keeps 0.28.0 retrieval and clone protections", () => {
 	const patchedSources = patchPiWebAccessSources(
 		readPiWebAccessFixtureSources(),
-		"0.25.0 fixture",
+		"0.28.0 fixture",
 	);
 	const extractSource = patchedSources.get("extract.ts") ?? "";
 	const githubSource = patchedSources.get("github-extract.ts") ?? "";
@@ -356,7 +357,7 @@ test("runtime readable extraction removes inline data URIs while raw mode preser
 	assert.equal(output.userAgent, "OpenAI File Downloader, XaiImageApiFetch/1.0");
 });
 
-test("runtime 0.25.0 normalizes PDF limits and honors OpenAI search provider priority", () => {
+test("runtime 0.28.0 normalizes PDF limits and honors OpenAI search provider priority", () => {
 	const root = mkdtempSync(join(tmpdir(), "feynman-web-0241-config-"));
 	const configPath = join(root, "web-search.json");
 	writeFileSync(
@@ -414,7 +415,7 @@ test("runtime 0.25.0 normalizes PDF limits and honors OpenAI search provider pri
 	}
 });
 
-test("runtime 0.25.0 rejects unsafe GitHub clone identities", () => {
+test("runtime 0.28.0 rejects unsafe GitHub clone identities", () => {
 	const githubUrl = pathToFileURL(join(PI_WEB_ACCESS_RUNTIME_ROOT, "github-extract.ts")).href;
 	const child = spawnSync(
 		process.execPath,
@@ -689,7 +690,7 @@ test("pi-web-access validator fails closed on config-path drift", () => {
 				stalePathSources,
 				"stale config path",
 			),
-		/Incomplete pi-web-access 0\.25\.0 stale config path index\.ts/,
+		/Incomplete pi-web-access 0\.28\.0 stale config path index\.ts/,
 	);
 
 	const staleDirectorySources = new Map(patchedSources);
@@ -706,7 +707,7 @@ test("pi-web-access validator fails closed on config-path drift", () => {
 				staleDirectorySources,
 				"stale config directory",
 			),
-		/Incomplete pi-web-access 0\.25\.0 stale config directory index\.ts/,
+		/Incomplete pi-web-access 0\.28\.0 stale config directory index\.ts/,
 	);
 });
 
@@ -776,7 +777,7 @@ test("patchPiWebAccessSource disables Gemini Web cookie access by default", () =
 
 test("patchPiWebAccessSource keeps Gemini Web config opt-in across current upstream aliases", () => {
 	const input = readFileSync(
-		join(PI_WEB_ACCESS_FIXTURE_ROOT, "gemini-web-config.ts.fixture"),
+		join(PI_WEB_ACCESS_FIXTURE_ROOT, "gemini-web-config.ts"),
 		"utf8",
 	);
 
@@ -925,13 +926,13 @@ test("patchPiWebAccessSource binds nested web model calls to Pi's resolved sessi
 
 test("patchPiWebAccessSource uses direct Pi session-scope membership at every nested model call", () => {
 	const pageQuerySource = [
-		'import { loadEnabledModelPatterns, modelMatchesEnabledPatterns } from "./summary-model-scope.ts";',
+		'import { findModelWithProviderRouting, loadEnabledModelPatterns, modelMatchesEnabledPatterns } from "./summary-model-scope.ts";',
 		"function resolveModel(ctx, model) {",
 		"\tif (!modelMatchesEnabledPatterns(model, loadEnabledModelPatterns(ctx))) throw new Error();",
 		"}",
 	].join("\n");
 	const patchedPageQuery = patchPiWebAccessSource("page-query.ts", pageQuerySource);
-	assert.match(patchedPageQuery, /import \{ modelMatchesScopedModels \}/);
+	assert.match(patchedPageQuery, /import \{ findModelWithProviderRouting, modelMatchesScopedModels \}/);
 	assert.match(patchedPageQuery, /modelMatchesScopedModels\(model, ctx\.scopedModels\)/);
 	assert.doesNotMatch(patchedPageQuery, /loadEnabledModelPatterns|modelMatchesEnabledPatterns/);
 
@@ -986,11 +987,11 @@ test("patchPiWebAccessSource carries Pi scoped models into every nested summary 
 });
 
 test("pi-web-access patch is exact-version gated and rejects unknown model-scope layouts", () => {
-	assert.equal(PI_WEB_ACCESS_REQUIRED_VERSION, "0.25.0");
-	assert.doesNotThrow(() => assertPiWebAccessVersion("0.25.0", "test"));
+	assert.equal(PI_WEB_ACCESS_REQUIRED_VERSION, "0.28.0");
+	assert.doesNotThrow(() => assertPiWebAccessVersion("0.28.0", "test"));
 	assert.throws(
-		() => assertPiWebAccessVersion("0.26.0", "future"),
-		/expected 0\.25\.0, found 0\.26\.0/,
+		() => assertPiWebAccessVersion("0.29.0", "future"),
+		/expected 0\.28\.0, found 0\.29\.0/,
 	);
 
 	const futureSource = [
@@ -1010,7 +1011,7 @@ test("pi-web-access patch is exact-version gated and rejects unknown model-scope
 	].join("\n");
 	assert.throws(
 		() => patchPiWebAccessSource("summary-model-scope.ts", futureSource),
-		/Unsupported pi-web-access 0\.25\.0 summary model scope layout/,
+		/Unsupported pi-web-access 0\.28\.0 summary model scope layout/,
 	);
 	assert.match(futureSource, /futureScopeHelper/);
 });

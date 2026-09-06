@@ -18,9 +18,10 @@ function reviewedSources(): Map<string, string> {
 			readFileSync(
 				join(
 					import.meta.dirname,
+					"..",
 					"fixtures",
-					"pi-web-access-0.25.0",
-					`${relativePath}.fixture`,
+					"pi-web-access-0.28.0",
+					relativePath,
 				),
 				"utf8",
 			),
@@ -60,13 +61,23 @@ test("pi-web-access source contract rejects marker-preserving fail-open drift", 
 	);
 });
 
-test("pi-web-access source contract covers every production file added or changed by 0.25.0", () => {
+test("pi-web-access source contract covers every production file added or changed by 0.28.0", () => {
 	for (const relativePath of [
 		"credential-source.ts",
 		"curator-page.ts",
 		"curator-server.ts",
 		"gemini-url-context.ts",
 		"github-api.ts",
+		"index.ts",
+		"extract.ts",
+		"gemini-search.ts",
+		"github-extract.ts",
+		"page-query.ts",
+		"perplexity.ts",
+		"utils.ts",
+		"xai-search.ts",
+		"mistral-search.ts",
+		"xcrawl.ts",
 	]) {
 		assert.ok(
 			PI_WEB_ACCESS_PATCH_TARGETS.includes(relativePath),
@@ -87,16 +98,17 @@ test("pi-web-access source contract covers every production file added or change
 test("pi-web-access exact forward fixtures normalize Windows checkout line endings", (t) => {
 	const root = mkdtempSync(join(tmpdir(), "feynman-web-fixture-crlf-"));
 	t.after(() => rmSync(root, { recursive: true, force: true }));
-	const fixtureRoot = join(root, "fixtures", "pi-web-access-0.25.0");
+	const fixtureRoot = join(root, "fixtures", "pi-web-access-0.28.0");
 	const packageRoot = join(root, "package");
 	mkdirSync(fixtureRoot, { recursive: true });
 	mkdirSync(packageRoot, { recursive: true });
 	const source = readFileSync(
 		join(
 			import.meta.dirname,
+			"..",
 			"fixtures",
-			"pi-web-access-0.25.0",
-			"data-uri-sanitize.ts.fixture",
+			"pi-web-access-0.28.0",
+			"data-uri-sanitize.ts",
 		),
 		"utf8",
 	);
@@ -107,7 +119,7 @@ test("pi-web-access exact forward fixtures normalize Windows checkout line endin
 	);
 
 	assert.equal(
-		syncPiWebAccessForwardFiles(root, packageRoot, "0.25.0"),
+		syncPiWebAccessForwardFiles(root, packageRoot, "0.28.0"),
 		true,
 	);
 	const synced = readFileSync(

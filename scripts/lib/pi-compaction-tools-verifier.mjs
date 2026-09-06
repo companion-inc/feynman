@@ -290,7 +290,7 @@ export async function verifyPiCompactionToolsBehavior(packageRoot) {
 				timestamp: index + 1,
 			},
 		})),
-		2048,
+		4096,
 	);
 	const largePrompt = JSON.stringify(largeContext.messages);
 	assert.doesNotMatch(

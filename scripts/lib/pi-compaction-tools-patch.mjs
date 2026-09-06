@@ -9,7 +9,7 @@
  * version that contains the commits above and equivalent fixes for #8651/#8652.
  */
 
-export const PI_COMPACTION_TOOLS_REQUIRED_VERSION = "0.84.2";
+export const PI_COMPACTION_TOOLS_REQUIRED_VERSION = "0.85.1";
 
 export const PI_COMPACTION_TOOLS_RUNTIME_TARGETS = Object.freeze([
 	"dist/core/compaction/compaction.js",
@@ -268,7 +268,9 @@ export function assertPiCompactionToolsPatchedSource(relativePath, source) {
 					"const effectiveSettings = getEffectiveCompactionSettings(",
 					"const modelMaxTokens = Number.isFinite(model.maxTokens) && model.maxTokens > 0",
 					"const systemPromptTokens = estimateTokens({ role: \"user\", content: SUMMARIZATION_SYSTEM_PROMPT, timestamp: 0 });",
-					"const maxTokens = Math.min(2048, modelMaxTokens, effectiveSettings.reserveTokens, contextWindow - emptyRequest.inputTokens - 1);",
+					source.includes("const maxTokens = Math.min(4096, modelMaxTokens,")
+						? "const maxTokens = Math.min(4096, modelMaxTokens, effectiveSettings.reserveTokens, contextWindow - emptyRequest.inputTokens - 1);"
+						: "const maxTokens = Math.min(2048, modelMaxTokens, effectiveSettings.reserveTokens, contextWindow - emptyRequest.inputTokens - 1);",
 					"const configuredConversationBudget = contextWindow - effectiveSettings.reserveTokens;",
 					"const tokenBudget = Math.min(configuredConversationBudget, contextWindow - emptyRequest.inputTokens - maxTokens);",
 					"const inputTokens = systemPromptTokens + estimateTokens(summarizationMessages[0]);",
@@ -357,6 +359,27 @@ export function assertPiCompactionToolsPatchedSource(relativePath, source) {
 
 function patchCompactionSource(source) {
 	let patched = source;
+	// 0.85.1 already rejects tool-call/truncated summaries and preserves the
+	// caller's routing ID. Keep those exact upstream guards; add our budget
+	// and content-integrity defenses below without duplicating exported helpers.
+	if (!patched.includes(PI_COMPACTION_TOOLS_PATCH_MARKERS.request) &&
+		patched.includes("sessionId: options.sessionId ?? uuidv7(),")) {
+		patched = replaceRequired(patched,
+			"        sessionId: options.sessionId ?? uuidv7(),",
+			`        sessionId: options.sessionId ?? uuidv7(),\n        // ${PI_COMPACTION_TOOLS_PATCH_MARKERS.request}\n        toolChoice: "none",`,
+			"upstream routing-aware summarization options");
+		for (const [label, marker] of [
+			["Summarization", PI_COMPACTION_TOOLS_PATCH_MARKERS.historyResponse],
+			["Turn prefix summarization", PI_COMPACTION_TOOLS_PATCH_MARKERS.prefixResponse],
+		]) {
+			const guard = `    if (response.content.some((block) => block.type === "toolCall")) {\n        throw new Error("${label} attempted to call a tool");\n    }`;
+			patched = replaceRequired(patched, guard, `    // ${marker}\n${guard}`, `upstream ${label} tool rejection`);
+		}
+		patched = replaceRequired(patched,
+			"export function getSummarizationFailure(response, label) {",
+			`// ${PI_COMPACTION_TOOLS_PATCH_MARKERS.summaryFailure}\nexport function getSummarizationFailure(response, label) {`,
+			"upstream truncated-summary guard");
+	}
 	if (!patched.includes(PI_COMPACTION_TOOLS_PATCH_MARKERS.request)) {
 		patched = replaceRequired(
 			patched,
@@ -625,6 +648,21 @@ export function getSummaryUsabilityFailure(summary, label, requiredSections = CH
 
 function patchBranchSummarizationSource(source) {
 	let patched = source;
+	const upstreamMaxTokens = "    const maxTokens = Math.min(4096, model.maxTokens > 0 ? model.maxTokens : Number.POSITIVE_INFINITY);\n";
+	const hasUpstreamBudget = patched.includes(upstreamMaxTokens);
+	if (!patched.includes(PI_COMPACTION_TOOLS_PATCH_MARKERS.branchResponse) &&
+		patched.includes('const failure = getSummarizationFailure(response, "Branch summarization");')) {
+		const guard = `    if (response.content.some((block) => block.type === "toolCall")) {\n        return { error: "Branch summarization attempted to call a tool" };\n    }`;
+		patched = replaceRequired(patched, guard,
+			`    // ${PI_COMPACTION_TOOLS_PATCH_MARKERS.branchResponse}\n${guard}`, "upstream branch tool rejection");
+	}
+	if (hasUpstreamBudget) {
+		patched = replaceRequired(patched, upstreamMaxTokens, "", "upstream branch output cap");
+		patched = replaceRequired(patched,
+			"    const requestOptions = { apiKey, headers, env, signal, maxTokens };",
+			"    const requestOptions = { apiKey, headers, env, signal, maxTokens: 2048 };",
+			"upstream branch request anchor");
+	}
 	if (!patched.includes(PI_COMPACTION_TOOLS_PATCH_MARKERS.branchResponse)) {
 		patched = replaceRequired(
 			patched,
@@ -840,6 +878,12 @@ ${BRANCH_SUMMARY_USABILITY_GUARD}`,
 		"branch-summarization.js.map",
 		"branch summarization JavaScript source map",
 	);
+	// Preserve upstream's increased reasoning allowance, still bounded by the
+	// model limit and the measured serialized request budget.
+	if (hasUpstreamBudget) {
+		patched = replaceRequired(patched, "Math.min(2048, modelMaxTokens,",
+			"Math.min(4096, modelMaxTokens,", "upstream branch reasoning allowance");
+	}
 	assertPiCompactionToolsPatchedSource("dist/core/compaction/branch-summarization.js", patched);
 	return patched;
 }
@@ -862,6 +906,13 @@ function patchAgentSessionSource(source) {
 
 function patchCompactionTypesSource(source) {
 	let patched = source;
+	const upstreamFailureDeclaration = "export declare function getSummarizationFailure(response: AssistantMessage, label: string): string | undefined;";
+	if (!patched.includes(PI_COMPACTION_TOOLS_PATCH_MARKERS.summaryFailureTypes) &&
+		patched.includes(upstreamFailureDeclaration)) {
+		patched = replaceRequired(patched, upstreamFailureDeclaration,
+			`/** ${PI_COMPACTION_TOOLS_PATCH_MARKERS.summaryFailureTypes} */\n${upstreamFailureDeclaration}`,
+			"upstream summarization failure declaration");
+	}
 	if (!patched.includes(PI_COMPACTION_TOOLS_PATCH_MARKERS.summaryFailureTypes)) {
 		patched = replaceRequired(
 			patched,

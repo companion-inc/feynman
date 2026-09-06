@@ -13,25 +13,25 @@ import {
 } from "../scripts/lib/liteparse-release-contract.mjs";
 
 const require = createRequire(import.meta.url);
-const LITEPARSE_GIT_HEAD = "b75603d44027cc70c44a9d9f9f20458c93fd37a7";
-const LITEPARSE_VERSION = "2.14.0";
+const LITEPARSE_GIT_HEAD = "b2e76ec5b0c1cb4eb11d67296e916792f4fb5858";
+const LITEPARSE_VERSION = "2.14.3";
 const LITEPARSE_INTEGRITY =
-	"sha512-lIFBbTRs87Bpp45Lm986hUDEPndm85pT9l/BM1dtWhQs0zTLEkpHLrgbOxGG2rjBqDgJM5fdChT8LWUd4ZThWA==";
+	"sha512-6gf70TDkNcu2lsYS5RAz+jl3lpwHKf8ppXyUb1PAFAF8BVW8Zg71ncvrkLMh3CYXF16kGO7p1Scymzpvmht0IQ==";
 const NATIVE_INTEGRITIES: Record<string, string> = {
 	"@llamaindex/liteparse-darwin-arm64":
-		"sha512-waYoHguqomVv43KEEqNf6nWSrpfMnNC8LXRtgN+a7F/WwICfNzrgA5Z8ayj2jhvvpYv7tsJ25M1vl8bb0i5UlA==",
+		"sha512-7ZQOXqw2l5PvzB+1fPQH7COLprYHLzqGm5i851Wy2ME2+mmnxJ3d+WKfNIavMOUWur7ZfibZXcHbgxDvWf3CLw==",
 	"@llamaindex/liteparse-darwin-x64":
-		"sha512-akTk/e6eEHgeP14f+8QiqueiEjiHTutX03XxRizXNn2aoTtQCEfElN4/p0rwTSFq35E76N7/z3ZVP5l1h4G4pw==",
+		"sha512-AUPTqFnXUX59hyQe1SaH3D6m9eYXt3v91UZR4VX9f3SFQ+VmBbqlAixCz9ROoSPH3SpQA9tQ2yUDdqEbJFNBlA==",
 	"@llamaindex/liteparse-linux-arm64-gnu":
-		"sha512-svIeleEBGQTAgeWaTySUgzba3rsEUGNaDN11B6wGvDjAyI59R/JkhM1+a7TP3T19v8+Ik+F/nzTz/AB6xJxQIA==",
+		"sha512-cH3disYDVroH0CMbt0PYDebZGh7RZbqteGd6wkuVbsLhAWesxpKLlW/L4cXHRDvxHN2mejW371Yn5EutP3fBOg==",
 	"@llamaindex/liteparse-linux-x64-gnu":
-		"sha512-UQTedZ9FJJ59pk4fFxBF6rPOoPssRf9580kCT1IkDowUavcAUMygfn3gtxfMtEOCTHsGpPHXLGmd5ICZOzmRbg==",
+		"sha512-DVJF6s8RP2Uiy/MuitQ4makPRKwG6QClvUIOssszkWsMVCoJi0DDTAhgCBElIzjZAQ02EcobtGyY3hRQzIckRQ==",
 	"@llamaindex/liteparse-linux-x64-musl":
-		"sha512-3Od2QCu68nDzvTE9rSNvMmAq1VkMwY94I/38ZwQqONdqGnBYCTKpBaMR2guxcky8Pn4sKVnILHwUgqb8jnLvTw==",
+		"sha512-a8qH2DuTodTWJll0Frvb6KZcgc+fwoSbCTz/w/Djg/IzaZyGBuV+ixYNxMq4/jLy/FK5om8Yg+8QJcBEvVkJtA==",
 	"@llamaindex/liteparse-win32-arm64-msvc":
-		"sha512-TRQh4pPdL2B34ihxYdDsxFgruk+u3opc+Spq6VMr/gwo+ASmEhVTxgnz/2RDEIlleXNYnxMCPI1LVyKiZgGn0w==",
+		"sha512-Vw6pocE4Cn370F04C+wuxm7LJ+YR9YVi+GT0V6EzgsFGzuKIzHgT79Iika4j/8l6wW+gbJGlM7A3w9ZnAeH4vw==",
 	"@llamaindex/liteparse-win32-x64-msvc":
-		"sha512-bv7T2/l9S4x2Cf66MlFK647yHyNVfeNmeJt+8YHcuG1KbBLwCO47brQdbetqw3+UJKCr4usEc8rt8+Kl1LvnVA==",
+		"sha512-rLlXkt/v1C8e9J3yWLhbuXFKPSa4t3yqZdUrbCSpqwG/tkpLdR+FkseWDmHN7UqSLWEJA26T50WFb/YLss/rBA==",
 };
 const FAKE_NATIVE_PACKAGE = "@llamaindex/liteparse-freebsd-x64";
 const PNG_SIGNATURE = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]);
@@ -154,7 +154,7 @@ test("LiteParse 2.14 release identity and all native locks are exact", () => {
 	assert.match(releaseContract, new RegExp(LITEPARSE_GIT_HEAD));
 	assert.match(releaseContract, new RegExp(LITEPARSE_INTEGRITY.replaceAll("+", "\\+")));
 	assert.match(installedVerifier, /EXPECTED_PI_DOCPARSER_VERSION = "4\.0\.0"/);
-	assert.match(installedVerifier, /EXPECTED_LITEPARSE_VERSION = "2\.14\.0"/);
+	assert.match(installedVerifier, /EXPECTED_LITEPARSE_VERSION = "2\.14\.3"/);
 	for (const packageName of Object.keys(NATIVE_INTEGRITIES)) {
 		assert.match(installedVerifier, new RegExp(packageName.replace("/", "\\/")));
 	}
@@ -186,7 +186,7 @@ test("LiteParse 2.14 release identity and all native locks are exact", () => {
 	);
 	assert.throws(
 		() => verifyLiteparseRuntimeLockContract(mutatedRuntimeLock, fail),
-		/liteparse-win32-x64-msvc@2\.14\.0/,
+		/liteparse-win32-x64-msvc@2\.14\.3/,
 	);
 });
 
@@ -389,6 +389,27 @@ test("LiteParse 2.14 parses both pages and renders PNG screenshots", async () =>
 			Buffer.from(screenshot.imageBuffer).subarray(0, PNG_SIGNATURE.byteLength),
 			PNG_SIGNATURE,
 		);
+	}
+});
+
+test("LiteParse 2.14.3 bounds selected pages without losing original page identity", async () => {
+	const LiteParse = loadNativeLiteParse();
+	const pdf = createTwoPagePdf();
+	for (const [config, expectedPage, phrase] of [
+		[{ maxPages: 1 }, 1, "LiteParse 2.14 page one"],
+		[{ targetPages: "2", maxPages: 1 }, 2, "LiteParse 2.14 page two"],
+	] as const) {
+		const result = await new LiteParse({
+			ocrEnabled: false,
+			outputFormat: "json",
+			quiet: true,
+			...config,
+		}).parse(pdf);
+		assert.equal(result.totalPages, 2);
+		assert.equal(result.pages.length, 1);
+		assert.equal(result.pages[0].pageNum, expectedPage);
+		assert.match(result.pages[0].text, new RegExp(phrase));
+		assert.doesNotMatch(result.text, expectedPage === 1 ? /page two/ : /page one/);
 	}
 });
 

@@ -5,7 +5,7 @@
  * Removal condition: delete this patch after a supported Pi release preserves
  * untouched mixed CRLF/LF line endings during exact and fuzzy edits.
  */
-export const PI_EDIT_LINE_ENDINGS_REQUIRED_VERSION = "0.84.2";
+export const PI_EDIT_LINE_ENDINGS_REQUIRED_VERSION = "0.85.1";
 export const PI_EDIT_LINE_ENDINGS_RUNTIME_TARGETS = Object.freeze([
 	"dist/core/tools/edit-diff.js",
 	"dist/core/tools/edit.js",

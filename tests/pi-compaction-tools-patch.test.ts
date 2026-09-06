@@ -24,10 +24,8 @@ import {
 	resolvePiCompactionToolsPackageTargets,
 	verifyPiCompactionToolsBehavior,
 } from "../scripts/lib/pi-compaction-tools-verifier.mjs";
-import { patchPiRuntimeNodeModules } from "../src/pi/runtime-patches.js";
 
 const appRoot = process.cwd();
-patchPiRuntimeNodeModules(appRoot);
 
 test("Pi compaction patch covers every bundled 0.84.2 summary path", () => {
 	const patchSource = readFileSync(

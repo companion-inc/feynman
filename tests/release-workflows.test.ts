@@ -194,7 +194,7 @@ test("publish uses the exact verified tarball after native bundles pass", () => 
 		publishNpmJob[0],
 		/tarball=\$\(node -e 'process\.stdout\.write\(require\("node:path"\)\.resolve\(process\.argv\[1\]\)\)' "\$tarball"\)/,
 	);
-	assert.match(publishNpmJob[0], /npx npm@11\.18\.0 publish "\$tarball" --access public --provenance/);
+	assert.match(publishNpmJob[0], /npx npm@12\.0\.2 publish "\$tarball" --access public --provenance/);
 	assert.match(publishNpmJob[0], /github\.event_name == 'push'/);
 	assert.match(
 		publishWorkflow,
@@ -212,7 +212,7 @@ test("publish uses the exact verified tarball after native bundles pass", () => 
 	for (const os of ["ubuntu-latest", "macos-14", "windows-latest"]) {
 		assert.match(publishWorkflow, new RegExp(`- os: ${os}`));
 	}
-	for (const nodeVersion of ["22.22.0", "24.18.0", "25"]) {
+	for (const nodeVersion of ["22.22.0", "24.20.0", "25"]) {
 		assert.match(publishWorkflow, new RegExp(`node: "${nodeVersion.replace(/\./g, "\\.")}"`));
 	}
 	const consumerJob = publishWorkflow.match(
@@ -249,6 +249,32 @@ test("all three provenance verifier calls pin immutable IDs from trusted GitHub 
 		assert.match(call, /"\.github\/workflows\/publish\.yml"/);
 	}
 	assert.equal((publishWorkflow.match(/audit signatures --json --include-attestations/g) ?? []).length, 3);
+});
+
+test("npm 12 is pinned only for compatible publisher and signature-audit jobs", () => {
+	// npm 12.0.2: ^22.22.2 || ^24.15.0 || >=26.0.0. In particular, not Node 25.
+	const [major, minor, patch] = readFileSync(".nvmrc", "utf8").trim().replace(/^v/, "").split(".").map(Number);
+	assert.ok(
+		(major === 22 && (minor > 22 || (minor === 22 && patch >= 2))) ||
+			(major === 24 && minor >= 15) || major >= 26,
+		"Publisher .nvmrc must satisfy npm 12.0.2 engines",
+	);
+	assert.equal((publishWorkflow.match(/npx(?: --yes)? npm@12\.0\.2 /g) ?? []).length, 4);
+	assert.equal((publishWorkflow.match(/npx --yes npm@12\.0\.2 audit signatures --json --include-attestations/g) ?? []).length, 3);
+	for (const id of ["version-check", "publish-npm", "verify-published-state"]) {
+		const job = publishWorkflow.match(new RegExp(`\\n  ${id}:[\\s\\S]*?(?=\\n  [a-z][a-z-]*:|$)`))?.[0];
+		assert.ok(job, `missing ${id} job`);
+		assert.match(job, /node-version-file: \.nvmrc/);
+		assert.match(job, /npm@12\.0\.2/);
+		assert.doesNotMatch(job, /node-version: \$\{\{ matrix\.node \}\}/);
+	}
+	const consumer = publishWorkflow.match(/\n  verify-package-consumers:[\s\S]*?(?=\n  publish-npm:)/)?.[0];
+	assert.ok(consumer);
+	assert.match(consumer, /node: "25"/);
+	assert.doesNotMatch(consumer, /npm@12|npm install.*--global.*npm@/);
+	assert.doesNotMatch(e2eWorkflow, /npm@12/);
+	assert.doesNotMatch(publishWorkflow, /npm@11\.18\.0|npm@latest/);
+	assert.match(publishWorkflow, /npx npm@12\.0\.2 publish "\$tarball" --access public --provenance/);
 });
 
 test("GitHub release waits for verification, native bundles, and npm publication", () => {
@@ -318,7 +344,7 @@ test("version reconciliation and post-publish verification cover all release sur
 		/npm view "@advaitpaliwal\/feynman@\$VERSION" version 2>\/dev\/null \|\| true/,
 	);
 	assert.match(publishWorkflow, /node-version-file: \.nvmrc/);
-	assert.match(publishWorkflow, /npx npm@11\.18\.0 publish/);
+	assert.match(publishWorkflow, /npx npm@12\.0\.2 publish/);
 	assert.match(publishWorkflow, /Windows native launcher failed --help/);
 	assert.match(
 		publishWorkflow,

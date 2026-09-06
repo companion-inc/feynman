@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
@@ -90,6 +90,128 @@ test("normalizeFeynmanSettings seeds the fast core package set", async () => {
 
 	const settings = JSON.parse(readFileSync(settingsPath, "utf8")) as { packages?: string[] };
 	assert.deepEqual(settings.packages, [...CORE_PACKAGE_SOURCES]);
+});
+
+test("normalizeFeynmanSettings migrates the complete pre-refresh old-scope package set", async (t) => {
+	const root = mkdtempSync(join(tmpdir(), "feynman-settings-old-scope-"));
+	t.after(() => rmSync(root, { recursive: true, force: true }));
+	const settingsPath = join(root, "settings.json");
+	const authPath = join(root, "auth.json");
+	writeFileSync(authPath, "{}\n");
+	writeFileSync(settingsPath, JSON.stringify({ packages: [
+		"npm:@companion-ai/alpha-hub@0.1.3",
+		"npm:pi-subagents@0.40.0",
+		"npm:pi-btw@0.4.1",
+		"npm:pi-docparser@4.0.0",
+		"npm:pi-web-access@0.25.0",
+		"npm:pi-otel@0.1.0",
+	] }));
+	await normalizeFeynmanSettings(settingsPath, join(root, "absent.json"), "medium", authPath);
+	assert.deepEqual(JSON.parse(readFileSync(settingsPath, "utf8")).packages, [...CORE_PACKAGE_SOURCES]);
+});
+
+test("subagent defaults follow settingsPath, not HOME, authPath, or the Pi environment", async (t) => {
+	const root = mkdtempSync(join(tmpdir(), "feynman-subagent-defaults-"));
+	t.after(() => rmSync(root, { recursive: true, force: true }));
+	const agentDir = join(root, "custom", "agent");
+	const decoyDir = join(root, "unrelated-agent");
+	mkdirSync(agentDir, { recursive: true });
+	mkdirSync(decoyDir);
+	const settingsPath = join(agentDir, "settings.json");
+	const bundledSettingsPath = join(root, "bundled.json");
+	const authPath = join(decoyDir, "auth.json");
+	writeFileSync(bundledSettingsPath, "{}\n");
+	writeFileSync(authPath, "{}\n");
+	const keys = ["HOME", "FEYNMAN_CODING_AGENT_DIR", "PI_CODING_AGENT_DIR"] as const;
+	const previous = keys.map((key) => process.env[key]);
+	for (const key of keys) process.env[key] = decoyDir;
+	try {
+		await normalizeFeynmanSettings(settingsPath, bundledSettingsPath, "medium", authPath);
+	} finally {
+		keys.forEach((key, index) => {
+			if (previous[index] === undefined) delete process.env[key];
+			else process.env[key] = previous[index];
+		});
+	}
+	const configPath = join(agentDir, "extensions", "subagent", "config.json");
+	assert.deepEqual(JSON.parse(readFileSync(configPath, "utf8")), {
+		missions: { enabled: false }, fleetView: false, asyncByDefault: true,
+	});
+	assert.equal(statSync(configPath).mode & 0o777, 0o600);
+	assert.equal(existsSync(join(decoyDir, "extensions")), false);
+	const before = readFileSync(configPath, "utf8");
+	const modifiedAt = statSync(configPath).mtimeMs;
+	await normalizeFeynmanSettings(settingsPath, bundledSettingsPath, "medium", authPath);
+	assert.equal(readFileSync(configPath, "utf8"), before);
+	assert.equal(statSync(configPath).mtimeMs, modifiedAt);
+});
+
+test("subagent defaults preserve explicit custom values and complete config bytes", async (t) => {
+	const root = mkdtempSync(join(tmpdir(), "feynman-subagent-custom-"));
+	t.after(() => rmSync(root, { recursive: true, force: true }));
+	const configPath = join(root, "extensions", "subagent", "config.json");
+	mkdirSync(join(root, "extensions", "subagent"), { recursive: true });
+	const original = '{"missions":{"enabled":true,"globalIndex":false},"fleetView":true,"asyncByDefault":false,"maxSubagentDepth":1}\n';
+	writeFileSync(configPath, original, { mode: 0o640 });
+	writeFileSync(join(root, "auth.json"), "{}\n");
+	await normalizeFeynmanSettings(join(root, "settings.json"), join(root, "absent.json"), "medium", join(root, "auth.json"));
+	assert.equal(readFileSync(configPath, "utf8"), original);
+	assert.equal(statSync(configPath).mode & 0o777, 0o640);
+});
+
+test("subagent defaults merge only missing fields while preserving nested config and false values", async (t) => {
+	const root = mkdtempSync(join(tmpdir(), "feynman-subagent-partial-"));
+	t.after(() => rmSync(root, { recursive: true, force: true }));
+	const configPath = join(root, "extensions", "subagent", "config.json");
+	mkdirSync(join(root, "extensions", "subagent"), { recursive: true });
+	writeFileSync(configPath, JSON.stringify({
+		missions: { directory: join(root, "custom-missions"), retainTerminal: 12 },
+		asyncByDefault: false, asyncWidget: true, custom: { nested: ["preserved"] },
+	}));
+	writeFileSync(join(root, "auth.json"), "{}\n");
+	await normalizeFeynmanSettings(join(root, "settings.json"), join(root, "absent.json"), "medium", join(root, "auth.json"));
+	assert.deepEqual(JSON.parse(readFileSync(configPath, "utf8")), {
+		missions: { directory: join(root, "custom-missions"), retainTerminal: 12, enabled: false },
+		asyncByDefault: false, asyncWidget: true, custom: { nested: ["preserved"] }, fleetView: false,
+	});
+});
+
+for (const invalid of [
+	"{", "null", "[]", "false", '"string"',
+	'{"missions":null}', '{"missions":[]}', '{"missions":false}',
+	'{"missions":{"enabled":"false"}}', '{"missions":{"enabled":null}}',
+	'{"fleetView":0}', '{"fleetView":null}', '{"asyncByDefault":"true"}', '{"asyncByDefault":null}',
+]) {
+	test(`subagent defaults reject invalid config without rewriting any settings: ${invalid}`, async (t) => {
+		const root = mkdtempSync(join(tmpdir(), "feynman-subagent-invalid-"));
+		t.after(() => rmSync(root, { recursive: true, force: true }));
+		const configPath = join(root, "extensions", "subagent", "config.json");
+		const settingsPath = join(root, "settings.json");
+		mkdirSync(join(root, "extensions", "subagent"), { recursive: true });
+		writeFileSync(configPath, invalid);
+		const settings = '{"subagents":{"agentOverrides":{"researcher":{"subagentOnlyExtensions":["custom.ts"]}}}}\n';
+		writeFileSync(settingsPath, settings);
+		await assert.rejects(
+			normalizeFeynmanSettings(settingsPath, join(root, "absent.json"), "medium", join(root, "absent-auth.json")),
+			/Invalid subagent config/,
+		);
+		assert.equal(readFileSync(configPath, "utf8"), invalid);
+		assert.equal(readFileSync(settingsPath, "utf8"), settings);
+		assert.equal(existsSync(join(root, "absent-auth.json")), false);
+	});
+}
+
+test("invalid main settings fail closed before creating subagent defaults", async (t) => {
+	const root = mkdtempSync(join(tmpdir(), "feynman-settings-invalid-"));
+	t.after(() => rmSync(root, { recursive: true, force: true }));
+	const settingsPath = join(root, "settings.json");
+	writeFileSync(settingsPath, "{");
+	await assert.rejects(
+		normalizeFeynmanSettings(settingsPath, join(root, "absent.json"), "medium", join(root, "absent-auth.json")),
+		/Invalid Feynman settings/,
+	);
+	assert.equal(readFileSync(settingsPath, "utf8"), "{");
+	assert.equal(existsSync(join(root, "extensions")), false);
 });
 
 test("normalizeFeynmanSettings gives the researcher child its Hugging Face tool provider", async () => {
@@ -221,11 +343,11 @@ test("bundled settings and package-list defaults use the same current core packa
 	) as { packages?: string[] };
 	assert.deepEqual(bundledSettings.packages, [...CORE_PACKAGE_SOURCES]);
 	assert.deepEqual(CORE_PACKAGE_SOURCES, [
-		"npm:@companion-ai/alpha-hub@0.1.3",
-		"npm:pi-subagents@0.40.0",
+		"npm:@advaitpaliwal/alpha-hub@0.1.4",
+		"npm:pi-subagents@0.65.1",
 		"npm:pi-btw@0.4.1",
 		"npm:pi-docparser@4.0.0",
-		"npm:pi-web-access@0.25.0",
+		"npm:pi-web-access@0.28.0",
 		"npm:pi-otel@0.1.0",
 	]);
 });
@@ -261,11 +383,12 @@ test("normalizeFeynmanSettings pins managed package names and preserves custom p
 
 	const settings = JSON.parse(readFileSync(settingsPath, "utf8")) as { packages?: unknown[] };
 	assert.deepEqual(settings.packages, [
-		CORE_PACKAGE_SOURCES[0],
+		"npm:@companion-ai/alpha-hub",
 		CORE_PACKAGE_SOURCES[1],
 		CORE_PACKAGE_SOURCES[3],
 		CORE_PACKAGE_SOURCES[4],
 		customPackage,
+		CORE_PACKAGE_SOURCES[0],
 		CORE_PACKAGE_SOURCES[2],
 		CORE_PACKAGE_SOURCES[5],
 	]);
@@ -280,10 +403,10 @@ test("managed package reconciliation updates stale sources without changing cust
 			custom,
 		]),
 		[
-			"npm:pi-web-access@0.25.0",
-			"npm:pi-subagents@0.40.0",
+			"npm:pi-web-access@0.28.0",
+			"npm:pi-subagents@0.65.1",
 			custom,
-			"npm:@companion-ai/alpha-hub@0.1.3",
+			"npm:@advaitpaliwal/alpha-hub@0.1.4",
 			"npm:pi-btw@0.4.1",
 			"npm:pi-docparser@4.0.0",
 			"npm:pi-otel@0.1.0",
@@ -298,9 +421,9 @@ test("managed package reconciliation updates every previously shipped package pi
 			"npm:pi-web-access@0.14.0",
 		]),
 		[
-			"npm:pi-subagents@0.40.0",
-			"npm:pi-web-access@0.25.0",
-			"npm:@companion-ai/alpha-hub@0.1.3",
+			"npm:pi-subagents@0.65.1",
+			"npm:pi-web-access@0.28.0",
+			"npm:@advaitpaliwal/alpha-hub@0.1.4",
 			"npm:pi-btw@0.4.1",
 			"npm:pi-docparser@4.0.0",
 			"npm:pi-otel@0.1.0",
@@ -309,9 +432,9 @@ test("managed package reconciliation updates every previously shipped package pi
 	assert.deepEqual(
 		reconcileManagedCorePackageSources(["npm:pi-web-access@0.18.0"]),
 		[
-			"npm:pi-web-access@0.25.0",
-			"npm:@companion-ai/alpha-hub@0.1.3",
-			"npm:pi-subagents@0.40.0",
+			"npm:pi-web-access@0.28.0",
+			"npm:@advaitpaliwal/alpha-hub@0.1.4",
+			"npm:pi-subagents@0.65.1",
 			"npm:pi-btw@0.4.1",
 			"npm:pi-docparser@4.0.0",
 			"npm:pi-otel@0.1.0",
@@ -320,9 +443,9 @@ test("managed package reconciliation updates every previously shipped package pi
 	assert.deepEqual(
 		reconcileManagedCorePackageSources(["npm:pi-web-access@0.22.0"]),
 		[
-			"npm:pi-web-access@0.25.0",
-			"npm:@companion-ai/alpha-hub@0.1.3",
-			"npm:pi-subagents@0.40.0",
+			"npm:pi-web-access@0.28.0",
+			"npm:@advaitpaliwal/alpha-hub@0.1.4",
+			"npm:pi-subagents@0.65.1",
 			"npm:pi-btw@0.4.1",
 			"npm:pi-docparser@4.0.0",
 			"npm:pi-otel@0.1.0",
@@ -331,9 +454,9 @@ test("managed package reconciliation updates every previously shipped package pi
 	assert.deepEqual(
 		reconcileManagedCorePackageSources(["npm:pi-web-access@0.23.0"]),
 		[
-			"npm:pi-web-access@0.25.0",
-			"npm:@companion-ai/alpha-hub@0.1.3",
-			"npm:pi-subagents@0.40.0",
+			"npm:pi-web-access@0.28.0",
+			"npm:@advaitpaliwal/alpha-hub@0.1.4",
+			"npm:pi-subagents@0.65.1",
 			"npm:pi-btw@0.4.1",
 			"npm:pi-docparser@4.0.0",
 			"npm:pi-otel@0.1.0",
@@ -342,9 +465,9 @@ test("managed package reconciliation updates every previously shipped package pi
 	assert.deepEqual(
 		reconcileManagedCorePackageSources(["npm:pi-web-access@0.24.0"]),
 		[
-			"npm:pi-web-access@0.25.0",
-			"npm:@companion-ai/alpha-hub@0.1.3",
-			"npm:pi-subagents@0.40.0",
+			"npm:pi-web-access@0.28.0",
+			"npm:@advaitpaliwal/alpha-hub@0.1.4",
+			"npm:pi-subagents@0.65.1",
 			"npm:pi-btw@0.4.1",
 			"npm:pi-docparser@4.0.0",
 			"npm:pi-otel@0.1.0",
@@ -353,9 +476,9 @@ test("managed package reconciliation updates every previously shipped package pi
 	assert.deepEqual(
 		reconcileManagedCorePackageSources(["npm:pi-web-access@0.24.2"]),
 		[
-			"npm:pi-web-access@0.25.0",
-			"npm:@companion-ai/alpha-hub@0.1.3",
-			"npm:pi-subagents@0.40.0",
+			"npm:pi-web-access@0.28.0",
+			"npm:@advaitpaliwal/alpha-hub@0.1.4",
+			"npm:pi-subagents@0.65.1",
 			"npm:pi-btw@0.4.1",
 			"npm:pi-docparser@4.0.0",
 			"npm:pi-otel@0.1.0",
@@ -371,9 +494,9 @@ test("managed package reconciliation preserves an explicit custom core selector 
 			custom,
 		]),
 		[
-			"npm:pi-subagents@0.40.0",
+			"npm:pi-subagents@0.65.1",
 			custom,
-			"npm:@companion-ai/alpha-hub@0.1.3",
+			"npm:@advaitpaliwal/alpha-hub@0.1.4",
 			"npm:pi-btw@0.4.1",
 			"npm:pi-docparser@4.0.0",
 			"npm:pi-otel@0.1.0",
@@ -388,9 +511,9 @@ test("managed package reconciliation preserves a custom core string selector", (
 			"npm:pi-web-access@next",
 		]),
 		[
-			"npm:pi-subagents@0.40.0",
+			"npm:pi-subagents@0.65.1",
 			"npm:pi-web-access@next",
-			"npm:@companion-ai/alpha-hub@0.1.3",
+			"npm:@advaitpaliwal/alpha-hub@0.1.4",
 			"npm:pi-btw@0.4.1",
 			"npm:pi-docparser@4.0.0",
 			"npm:pi-otel@0.1.0",
@@ -726,11 +849,11 @@ test("optional package presets map friendly aliases", () => {
 });
 
 test("package update sources map core and optional aliases", () => {
-	assert.deepEqual(resolvePackageUpdateSources("pi-subagents"), ["npm:pi-subagents@0.40.0"]);
-	assert.deepEqual(resolvePackageUpdateSources("subagents"), ["npm:pi-subagents@0.40.0"]);
-	assert.deepEqual(resolvePackageUpdateSources("npm:pi-subagents"), ["npm:pi-subagents@0.40.0"]);
-	assert.deepEqual(resolvePackageUpdateSources("pi-web-access"), ["npm:pi-web-access@0.25.0"]);
-	assert.deepEqual(resolvePackageUpdateSources("alpha-hub"), ["npm:@companion-ai/alpha-hub@0.1.3"]);
+	assert.deepEqual(resolvePackageUpdateSources("pi-subagents"), ["npm:pi-subagents@0.65.1"]);
+	assert.deepEqual(resolvePackageUpdateSources("subagents"), ["npm:pi-subagents@0.65.1"]);
+	assert.deepEqual(resolvePackageUpdateSources("npm:pi-subagents"), ["npm:pi-subagents@0.65.1"]);
+	assert.deepEqual(resolvePackageUpdateSources("pi-web-access"), ["npm:pi-web-access@0.28.0"]);
+	assert.deepEqual(resolvePackageUpdateSources("alpha-hub"), ["npm:@advaitpaliwal/alpha-hub@0.1.4"]);
 	assert.deepEqual(resolvePackageUpdateSources("npm:pi-subagents@0.37.2"), ["npm:pi-subagents@0.37.2"]);
 	assert.deepEqual(resolvePackageUpdateSources("hindsight"), ["npm:@luxusai/pi-hindsight"]);
 	assert.deepEqual(resolvePackageUpdateSources("pi-hindsight"), ["npm:@luxusai/pi-hindsight"]);

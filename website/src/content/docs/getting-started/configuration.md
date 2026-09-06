@@ -119,6 +119,18 @@ Full fetched pages live in `~/.feynman/web-search-cache/` for one hour. Session 
 
 ## Subagent model overrides
 
+The subagent runtime has a separate config at `~/.feynman/agent/extensions/subagent/config.json`. When relocated, it uses `extensions/subagent/config.json` under the directory containing the active agent `settings.json`. Feynman fills only missing research defaults:
+
+```json
+{
+  "missions": { "enabled": false },
+  "fleetView": false,
+  "asyncByDefault": true
+}
+```
+
+Existing custom values and unrelated settings are preserved. Malformed JSON, a non-object config, or invalid types for these defaults stop normalization without replacing the config. Automatic mission creation and Fleet UI therefore remain off for a fresh research setup; background delegation stays on. This does not change researcher `subagentOnlyExtensions` wiring or prove native background tool availability.
+
 Feynman's bundled subagents inherit the main approved research model unless you override them explicitly. Inside the REPL, run:
 
 ```bash

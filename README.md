@@ -242,6 +242,8 @@ Built on [Pi](https://github.com/badlogic/pi-mono) for the agent runtime, [alpha
 
 ---
 
+The bundled research runtime is updated as a coordinated set, including Pi, Alpha Hub's `alpha-mcp`, document parsing, web research, and subagents. See the [package stack](https://feynman.is/docs/reference/package-stack) and [release notes](https://feynman.is/docs/reference/releases) for versions and upgrade details.
+
 ### Contributing
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for the full contributor guide.

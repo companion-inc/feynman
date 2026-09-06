@@ -3979,7 +3979,7 @@ function mergeSections(sections: PaperSection[]): PaperSection[] {
 
 export async function fetchAlphaPaperContent(paper: PaperRecord): Promise<PaperContentFetchResult | undefined> {
 	if (!paper.arxivId) return undefined;
-	const alpha = await import("@companion-ai/alpha-hub/lib");
+	const alpha = await import("@advaitpaliwal/alpha-hub/lib");
 	try {
 		const result = await alpha.getPaper(paper.arxivId, { fullText: true });
 		return {

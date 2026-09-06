@@ -16,6 +16,7 @@ import { pathToFileURL } from "node:url";
 
 import {
 	assertPiStateFilePermissionsPatchSource,
+	PI_STATE_FILE_PERMISSIONS_REQUIRED_VERSION,
 	patchPiStateFilePermissionsSource,
 } from "../scripts/lib/pi-state-file-permissions-patch.mjs";
 import { verifyInstalledPiStateFilePermissions } from "../scripts/lib/pi-state-file-permissions-verifier.mjs";
@@ -124,7 +125,7 @@ test("launch-time repair reaches bundled, vendored, global, and agent-managed Pi
 				join(packageRoot, "package.json"),
 				JSON.stringify({
 					name: "@earendil-works/pi-coding-agent",
-					version: "0.84.2",
+					version: PI_STATE_FILE_PERMISSIONS_REQUIRED_VERSION,
 					piConfig: { name: "feynman", configDir: ".feynman" },
 				}),
 				"utf8",

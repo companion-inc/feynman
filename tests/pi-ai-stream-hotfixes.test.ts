@@ -109,12 +109,12 @@ async function closeServer(server: Server): Promise<void> {
 	});
 }
 
-test("Pi 0.84.2 AI stream transforms are exact-version, idempotent, and fail closed", () => {
+test("Pi 0.85.1 AI stream transforms are exact-version, idempotent, and fail closed", () => {
 	for (const root of [piAiRoot, nestedPiAiRoot]) {
 		const manifest = JSON.parse(readFileSync(resolve(root, "package.json"), "utf8"));
 		assert.equal(manifest.version, PI_AI_FORWARD_FIX_REQUIRED_VERSION);
 	}
-	assert.equal(PI_AI_FORWARD_FIX_REQUIRED_VERSION, "0.84.2");
+	assert.equal(PI_AI_FORWARD_FIX_REQUIRED_VERSION, "0.85.1");
 
 	for (const relativePath of [
 		"dist/api/openai-completions.js",

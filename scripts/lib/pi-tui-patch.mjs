@@ -389,6 +389,23 @@ function patchCurrentEditorSource(source) {
 			'                const renderedLine = `${leftPadding}${line}${linePadding}${rightPadding}`;\n                result.push(bgColor ? applyBackgroundToLine(renderedLine, width, bgColor) : renderedLine);',
 		],
 	];
+	// 0.85.1 extracted border methods so the embedded working indicator can
+	// customize them. Preserve those calls while applying the same input,
+	// placeholder, cursor and background transformations.
+	if (source.includes("        result.push(this.renderTopBorder(width, this.scrollOffset));")) {
+		replacements[1] = [
+			"        this.lastWidth = layoutWidth;\n        // Layout the text",
+			'        this.lastWidth = layoutWidth;\n        const bgColor = this.theme.bgColor;\n        const styleInput = typeof this.theme.input === "function" ? this.theme.input : (text) => text;\n        // Layout the text',
+		];
+		replacements[2] = [
+			"        result.push(this.renderTopBorder(width, this.scrollOffset));",
+			"        const topBorder = this.renderTopBorder(width, this.scrollOffset);\n        result.push(bgColor ? applyBackgroundToLine(topBorder, width, bgColor) : topBorder);",
+		];
+		replacements[11] = [
+			"        result.push(this.renderBottomBorder(width, linesBelow));",
+			"        const bottomBorder = this.renderBottomBorder(width, linesBelow);\n        result.push(bgColor ? applyBackgroundToLine(bottomBorder, width, bgColor) : bottomBorder);",
+		];
+	}
 	const missing = replacements
 		.map(([original], index) => source.includes(original) ? undefined : index + 1)
 		.filter(Boolean);
@@ -418,6 +435,22 @@ export function patchPiTuiSource(source) {
 	}
 	if (source.includes(OVERFLOW_THROW_BLOCK_AFTER_CLEAR_CURRENT)) {
 		return source.replace(OVERFLOW_THROW_BLOCK_AFTER_CLEAR_CURRENT, OVERFLOW_TRUNCATE_BLOCK_AFTER_CLEAR);
+	}
+	// 0.85.1 changed the output accumulator to RenderBuffer.append. Preserve it
+	// (avoids V8 large-string overflow) and the complete Kitty-image handling.
+	const currentThrow = OVERFLOW_THROW_BLOCK_AFTER_CLEAR_CURRENT.replace(
+		/buffer \+= ([^;\n]+);/g, "output.append($1);",
+	).replace('path.join(this.logDirectory, "pi-crash.log")',
+		'path.join(this.logDirectory ?? os.tmpdir(), "pi-tui-crash.log")');
+	const currentTruncate = OVERFLOW_TRUNCATE_BLOCK_AFTER_CLEAR.replace(
+		/buffer \+= ([^;\n]+);/g, "output.append($1);",
+	);
+	if (source.includes(currentThrow)) {
+		const importAnchor = 'import { visibleWidth } from "./utils.js";';
+		if (source.split(importAnchor).length !== 2)
+			throw new Error("Unsupported Pi 0.85.1 TUI truncation import");
+		return source.replace(currentThrow, currentTruncate)
+			.replace(importAnchor, 'import { sliceByColumn, visibleWidth } from "./utils.js";');
 	}
 	throw new Error("Unsupported Pi TUI layout: required overflow patch anchor was not found");
 }

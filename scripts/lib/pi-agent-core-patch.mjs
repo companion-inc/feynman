@@ -175,6 +175,14 @@ const PATCHED_POST_TURN_SEQUENCE = `            await emit({ type: "turn_end", m
                 return;
             }
             const nextTurnContext = {`;
+// 0.85.1 moved prepareNextTurn to the next iteration; the abort guard must
+// still precede shouldStopAfterTurn and either destructive queue callback.
+const CURRENT_POST_TURN_SEQUENCE = ORIGINAL_POST_TURN_SEQUENCE.replace(
+	"const nextTurnContext =", "lastCompletedTurn =",
+);
+const CURRENT_PATCHED_POST_TURN_SEQUENCE = PATCHED_POST_TURN_SEQUENCE.replace(
+	"const nextTurnContext =", "lastCompletedTurn =",
+);
 
 const PATCHED_STREAM_LOOP = `    let partialMessage = null;
     let addedPartial = false;
@@ -308,12 +316,13 @@ export function assertPiAgentCorePatchSource(source, surface = "Pi AgentCore") {
 		source.includes("async function runLoop(") ||
 		source.includes(ABORT_QUEUE_GUARD_MARKER);
 	if (hasAgentLoopSurface) {
-		if (countOccurrences(source, PATCHED_POST_TURN_SEQUENCE) !== 1) {
+		if (countOccurrences(source, PATCHED_POST_TURN_SEQUENCE) +
+			countOccurrences(source, CURRENT_PATCHED_POST_TURN_SEQUENCE) !== 1) {
 			throw new Error(
 				`Incomplete ${surface} patch: missing exact post-turn abort queue guard`,
 			);
 		}
-		if (source.includes(ORIGINAL_POST_TURN_SEQUENCE)) {
+		if (source.includes(ORIGINAL_POST_TURN_SEQUENCE) || source.includes(CURRENT_POST_TURN_SEQUENCE)) {
 			throw new Error(
 				`Incomplete ${surface} patch: retained unguarded post-turn queue path`,
 			);
@@ -435,6 +444,9 @@ function patchAbortQueueGuard(source) {
 	}
 	if (source.includes(ABORT_QUEUE_GUARD_MARKER)) {
 		return source;
+	}
+	if (countOccurrences(source, CURRENT_POST_TURN_SEQUENCE) === 1) {
+		return source.replace(CURRENT_POST_TURN_SEQUENCE, CURRENT_PATCHED_POST_TURN_SEQUENCE);
 	}
 	const occurrences = countOccurrences(source, ORIGINAL_POST_TURN_SEQUENCE);
 	if (occurrences !== 1) {

@@ -12,8 +12,8 @@ test("npm uses the personal package and transferred repository", () => {
 	assert.equal(manifest.author, "Advait Paliwal");
 	assert.equal(manifest.publishConfig.access, "public");
 	assert.equal(manifest.bin.feynman, "bin/feynman.js");
-	assert.ok(manifest.dependencies["@companion-ai/alpha-hub"]);
-	assert.ok(manifest.bundleDependencies.includes("@companion-ai/alpha-hub"));
+	assert.ok(manifest.dependencies["@advaitpaliwal/alpha-hub"]);
+	assert.ok(manifest.bundleDependencies.includes("@advaitpaliwal/alpha-hub"));
 	assert.equal(lock.name, manifest.name);
 	assert.equal(lock.packages[""].name, manifest.name);
 	assert.equal(lock.version, manifest.version);

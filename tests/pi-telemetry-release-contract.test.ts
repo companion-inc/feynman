@@ -34,11 +34,11 @@ test("Pi telemetry runtime pin falls back only when package-lock is not shipped"
 	);
 	assert.throws(
 		() => resolvePiTelemetryRuntimeVersion(undefined, true),
-		/maintained Pi 0\.84\.2 train, found missing/,
+		/maintained Pi 0\.85\.1 train, found missing/,
 	);
 	assert.throws(
 		() => resolvePiTelemetryRuntimeVersion("0.84.3", true),
-		/maintained Pi 0\.84\.2 train, found 0\.84\.3/,
+		/maintained Pi 0\.85\.1 train, found 0\.84\.3/,
 	);
 });
 
@@ -105,7 +105,7 @@ function verifyArchive(entries: Map<string, unknown>) {
 	);
 }
 
-test("Pi telemetry runtime lock binds the exact official 0.84.2 identity", () => {
+test("Pi telemetry runtime lock binds the exact official 0.85.1 identity", () => {
 	assert.doesNotThrow(() => verifyRuntimeLock(makeRuntimeLock()));
 
 	for (const packagePath of [
@@ -117,7 +117,7 @@ test("Pi telemetry runtime lock binds the exact official 0.84.2 identity", () =>
 			"https://packages.example.invalid/pi-telemetry-0.84.2.tgz";
 		assert.throws(
 			() => verifyRuntimeLock(alteredResolved),
-			/exact @earendil-works\/pi-telemetry@0\.84\.2/,
+			/exact @earendil-works\/pi-telemetry@0\.85\.1/,
 			`${packagePath} accepted an altered resolved URL`,
 		);
 
@@ -126,7 +126,7 @@ test("Pi telemetry runtime lock binds the exact official 0.84.2 identity", () =>
 			"sha512-altered";
 		assert.throws(
 			() => verifyRuntimeLock(alteredIntegrity),
-			/(reviewed npm integrity|exact @earendil-works\/pi-telemetry@0\.84\.2)/,
+			/(reviewed npm integrity|exact @earendil-works\/pi-telemetry@0\.85\.1)/,
 			`${packagePath} accepted altered integrity`,
 		);
 
@@ -134,7 +134,7 @@ test("Pi telemetry runtime lock binds the exact official 0.84.2 identity", () =>
 		alteredVersion.packages![packagePath]!.version = "0.84.3";
 		assert.throws(
 			() => verifyRuntimeLock(alteredVersion),
-			/exact @earendil-works\/pi-telemetry@0\.84\.2/,
+			/exact @earendil-works\/pi-telemetry@0\.85\.1/,
 			`${packagePath} accepted version drift`,
 		);
 	}
@@ -147,7 +147,7 @@ test("Pi telemetry runtime lock binds the exact official 0.84.2 identity", () =>
 				"0.84.3",
 				fail,
 			),
-		/release contract is pinned.*0\.84\.2.*not 0\.84\.3/,
+		/release contract is pinned.*0\.85\.1.*not 0\.84\.3/,
 	);
 });
 
@@ -184,7 +184,7 @@ test("Pi telemetry runtime lock rejects missing and extra placements", () => {
 	];
 	assert.throws(
 		() => verifyRuntimeLock(missingDirectPin),
-		/does not directly pin @earendil-works\/pi-telemetry@0\.84\.2/,
+		/does not directly pin @earendil-works\/pi-telemetry@0\.85\.1/,
 	);
 
 	const rangedDirectPin = makeRuntimeLock();
@@ -193,7 +193,7 @@ test("Pi telemetry runtime lock rejects missing and extra placements", () => {
 	] = "^0.84.2";
 	assert.throws(
 		() => verifyRuntimeLock(rangedDirectPin),
-		/does not directly pin @earendil-works\/pi-telemetry@0\.84\.2/,
+		/does not directly pin @earendil-works\/pi-telemetry@0\.85\.1/,
 	);
 });
 
@@ -211,7 +211,7 @@ test("Pi telemetry archive binds manifest names and archived lock identity", () 
 		});
 		assert.throws(
 			() => verifyArchive(wrongName),
-			/not exact @earendil-works\/pi-telemetry@0\.84\.2/,
+			/not exact @earendil-works\/pi-telemetry@0\.85\.1/,
 			`${manifestPath} accepted the wrong package name`,
 		);
 
@@ -222,7 +222,7 @@ test("Pi telemetry archive binds manifest names and archived lock identity", () 
 		});
 		assert.throws(
 			() => verifyArchive(wrongVersion),
-			/not exact @earendil-works\/pi-telemetry@0\.84\.2/,
+			/not exact @earendil-works\/pi-telemetry@0\.85\.1/,
 			`${manifestPath} accepted version drift`,
 		);
 
@@ -243,7 +243,7 @@ test("Pi telemetry archive binds manifest names and archived lock identity", () 
 		"https://packages.example.invalid/pi-telemetry-0.84.2.tgz";
 	assert.throws(
 		() => verifyArchive(alteredArchivedResolved),
-		/exact @earendil-works\/pi-telemetry@0\.84\.2/,
+		/exact @earendil-works\/pi-telemetry@0\.85\.1/,
 	);
 
 	const alteredArchivedIntegrity = makeArchiveEntries();

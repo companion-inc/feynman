@@ -1,4 +1,4 @@
-export declare const PI_AI_FORWARD_FIX_REQUIRED_VERSION: "0.84.2";
+export declare const PI_AI_FORWARD_FIX_REQUIRED_VERSION: "0.85.1";
 export declare const PI_AI_FORWARD_FIX_TARGETS: readonly string[];
 export declare const PI_AI_FORWARD_FIX_RUNTIME_TARGETS: readonly string[];
 export declare const PI_AI_FORWARD_FIX_MARKERS: Readonly<{

@@ -168,7 +168,7 @@ ${exactLoopAndPatchBranch}
 function writeInstalledPiCliCopy(
 	piPackageRoot: string,
 	source: string,
-	version = "0.84.2",
+	version = "0.85.1",
 ): void {
 	mkdirSync(join(piPackageRoot, "dist", "cli"), { recursive: true });
 	writeFileSync(
@@ -215,7 +215,7 @@ async function importInstalledParser(source: string) {
 	}>;
 }
 
-test("Pi CLI args patch matches installed 0.84.2 and is idempotent", () => {
+test("Pi CLI args patch matches installed 0.85.1 and is idempotent", () => {
 	const source = readFileSync(installedArgsPath, "utf8");
 	const patched = patchPiCliArgsSource(source);
 
@@ -333,10 +333,10 @@ test("Pi CLI args patch fails closed when patched behavior drifts", () => {
 	for (const version of ["0.84.1", "0.84.3", undefined]) {
 		assert.throws(
 			() => assertPiCliArgsVersion(version, "test Pi"),
-			/requires 0\.84\.2/,
+			/requires 0\.85\.1/,
 		);
 	}
-	assert.doesNotThrow(() => assertPiCliArgsVersion("0.84.2", "test Pi"));
+	assert.doesNotThrow(() => assertPiCliArgsVersion("0.85.1", "test Pi"));
 });
 
 test("installed verifier preflights both exact Pi copies before executing either parser", async () => {
@@ -377,7 +377,7 @@ test("installed verifier preflights both exact Pi copies before executing either
 		writeInstalledPiCliCopy(packageRoots[1], patched, "0.84.1");
 		await assert.rejects(
 			() => verifyInstalledPiCliEndOfOptions(installedRoot),
-			/requires 0\.84\.2/,
+			/requires 0\.85\.1/,
 		);
 		assert.equal(
 			(globalThis as Record<string, unknown>)[executionKey],
@@ -434,7 +434,7 @@ test("launch-time Pi repair reaches root, generated, global, and agent-managed c
 				join(packageRoot, "package.json"),
 				`${JSON.stringify({
 					name: "@earendil-works/pi-coding-agent",
-					version: "0.84.2",
+					version: "0.85.1",
 					piConfig: { name: "feynman", configDir: ".feynman" },
 				})}\n`,
 			);
@@ -479,7 +479,7 @@ test("launch-time Pi repair preflights all managed copies before writing", () =>
 				join(packageRoot, "package.json"),
 				`${JSON.stringify({
 					name: "@earendil-works/pi-coding-agent",
-					version: index === 2 ? "0.84.1" : "0.84.2",
+					version: index === 2 ? "0.84.1" : "0.85.1",
 				})}\n`,
 			);
 			writeFileSync(
@@ -514,7 +514,7 @@ test("launch-time Pi repair preflights all managed copies before writing", () =>
 				resolve(argsPaths[2], "../../..", "package.json"),
 				`${JSON.stringify({
 					name: "@earendil-works/pi-coding-agent",
-					version: "0.84.2",
+					version: "0.85.1",
 				})}\n`,
 			);
 			rmSync(argsPaths[0]);

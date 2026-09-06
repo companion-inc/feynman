@@ -1,9 +1,6 @@
 /**
  * Temporary Pi 0.84.2 correctness patches for:
- * - https://github.com/earendil-works/pi/issues/7053
- * - https://github.com/earendil-works/pi/issues/8121
- * - https://github.com/earendil-works/pi/issues/8166
- * - https://github.com/earendil-works/pi/issues/8581
+ * Pi issues #7053, #8121, #8166, #8581 (https://github.com/earendil-works/pi).
  *
  * Removal condition: delete this patch once a supported released Pi version
  * eagerly persists finalized parallel tool results while restoring them in
@@ -19,6 +16,7 @@
  * The SessionManager patch also ports commit 0b5ee5d8 so resuming a valid
  * unterminated JSONL session cannot fuse the next appended research entry.
  */
+import { isCurrentCopilotOAuthSource, normalizeCurrentDeferredCustomMessages, patchCurrentToolReleaseRedirect, patchCurrentDeviceCodeExport, patchDeferredRunGuard, assertDeferredRunGuard } from "./pi-runtime-correctness-current.mjs";
 import {
 	assertPiInterleavedUserContentSource,
 	PI_INTERLEAVED_USER_CONTENT_MARKER,
@@ -41,7 +39,7 @@ export const PI_RUNTIME_CORRECTNESS_PATCH_TARGETS = Object.freeze({
 		"dist/auth/oauth/github-copilot.js",
 	]),
 });
-export const PI_RUNTIME_CORRECTNESS_REQUIRED_VERSION = "0.84.2";
+export const PI_RUNTIME_CORRECTNESS_REQUIRED_VERSION = "0.85.1";
 export const PI_CODING_AGENT_FORWARD_FIX_TARGETS = Object.freeze([
 	"dist/modes/interactive/components/tool-execution.js",
 	"dist/utils/tools-manager.js",
@@ -373,6 +371,12 @@ export async function getLatestVersion(repo) {
     }
     return version;
 }`;
+		const currentRedirect = patchCurrentToolReleaseRedirect(source, replacement);
+		if (currentRedirect !== undefined) {
+			assertPiCodingAgentForwardFixSource(relativePath, currentRedirect);
+			return currentRedirect;
+		}
+
 		let patched = replaceRequired(source, original, replacement, "tool release version lookup");
 		patched = replaceRequired(
 			patched,
@@ -425,6 +429,12 @@ export async function getLatestVersion(repo) {
 			assertPiCodingAgentForwardFixSource(relativePath, source);
 			return source;
 		}
+		const upstreamExif = "            if (hasExifHeader(bytes, segmentStart))\n                return segmentStart + 6;";
+		if (source.includes(upstreamExif)) {
+			const patched = replaceRequired(source, upstreamExif, PATCHED_EXIF_AFTER_XMP_BLOCK, "upstream EXIF guard");
+			assertPiCodingAgentForwardFixSource(relativePath, patched);
+			return patched;
+		}
 		const patched = replaceRequired(
 			source,
 			`            if (!hasExifHeader(bytes, segmentStart))
@@ -441,6 +451,7 @@ export async function getLatestVersion(repo) {
 }
 
 export function assertPiRuntimeCorrectnessPatchSource(source, target, surface = target) {
+	if (target === "githubCopilotOAuth" && isCurrentCopilotOAuthSource(source)) return;
 	const required = PI_RUNTIME_CORRECTNESS_REQUIRED_FRAGMENTS[target];
 	const forbidden = PI_RUNTIME_CORRECTNESS_FORBIDDEN_FRAGMENTS[target];
 	const ordered = PI_RUNTIME_CORRECTNESS_ORDERED_FRAGMENTS[target];
@@ -461,6 +472,7 @@ export function assertPiRuntimeCorrectnessPatchSource(source, target, surface = 
 		}
 	}
 	if (target === "agentSession") {
+		assertDeferredRunGuard(source);
 		assertPiInterleavedUserContentSource(source, surface);
 		if (/\bif\s*\([^{}\n]*\bmessageText\b[^{}\n]*\)\s*\{/.test(source)) {
 			throw new Error(
@@ -603,6 +615,7 @@ function patchPiDeferredTurnEndMessagesSource(source) {
 	if (source.includes(PI_RUNTIME_CORRECTNESS_PATCH_MARKERS.turnEndMessages)) {
 		return source;
 	}
+	source = normalizeCurrentDeferredCustomMessages(source);
 	let patched = replaceRequired(
 		source,
 		"    _pendingNextTurnMessages = [];\n",
@@ -777,6 +790,7 @@ export function patchPiAgentSessionSource(source) {
 	source = patchPiInterleavedUserContentSource(source);
 	source = patchPiImageQueueDeliverySource(source);
 	source = patchPiDeferredTurnEndMessagesSource(source);
+	source = patchDeferredRunGuard(source);
 	if (source.includes(AGENT_SESSION_MARKER)) {
 		try {
 			assertPiRuntimeCorrectnessPatchSource(source, "agentSession");
@@ -1126,31 +1140,14 @@ const PATCHED_COPILOT_POLICY_UPDATES = `    for (const model of Object.values(GI
 
 export function patchPiGithubCopilotDeviceCodeSource(source) {
 	source = stripStaleSourceMapDirective(source, "github-copilot device-code");
-	if (source.includes(GITHUB_COPILOT_DEVICE_CODE_MARKER)) {
-		assertPiRuntimeCorrectnessPatchSource(
-			source,
-			"githubCopilotDeviceCode",
-		"github-copilot device-code",
-		);
-		return source;
-	}
-	const patched = replaceRequired(
-		source,
-		"function abortableSleep(ms, signal, cancelMessage) {",
-		`// ${GITHUB_COPILOT_DEVICE_CODE_MARKER}
-export function abortableSleep(ms, signal, cancelMessage) {`,
-		"github-copilot device-code export",
-	);
-	assertPiRuntimeCorrectnessPatchSource(
-		patched,
-		"githubCopilotDeviceCode",
-		"github-copilot device-code",
-	);
+	const patched = patchCurrentDeviceCodeExport(source, GITHUB_COPILOT_DEVICE_CODE_MARKER);
+	assertPiRuntimeCorrectnessPatchSource(patched, "githubCopilotDeviceCode", "github-copilot device-code");
 	return patched;
 }
 
 export function patchPiGithubCopilotOAuthSource(source) {
 	source = stripStaleSourceMapDirective(source, "github-copilot OAuth");
+	if (isCurrentCopilotOAuthSource(source)) return source;
 	if (source.includes(GITHUB_COPILOT_OAUTH_MARKER)) {
 		assertPiRuntimeCorrectnessPatchSource(
 			source,

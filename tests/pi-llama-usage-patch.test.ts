@@ -37,7 +37,7 @@ const providerPath = resolve(
 	"provider.js",
 );
 
-test("Pi 0.84.2 llama.cpp patch is exact, idempotent, and version-gated", () => {
+test("Pi 0.85.1 llama.cpp patch is exact, idempotent, and version-gated", () => {
 	patchPiRuntimeNodeModules(appRoot);
 	const source = readFileSync(providerPath, "utf8");
 	assert.match(source, new RegExp(PI_LLAMA_USAGE_PATCH_MARKER.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
@@ -48,11 +48,11 @@ test("Pi 0.84.2 llama.cpp patch is exact, idempotent, and version-gated", () => 
 	);
 	assert.throws(
 		() => assertPiLlamaUsageVersion("0.82.1", "test"),
-		/expected 0\.84\.2, found 0\.82\.1/,
+		/expected 0\.85\.1, found 0\.82\.1/,
 	);
 	assert.throws(
 		() => assertPiLlamaUsageVersion("0.84.0", "test"),
-		/expected 0\.84\.2, found 0\.84\.0/,
+		/expected 0\.85\.1, found 0\.84\.0/,
 	);
 	assert.throws(
 		() => assertPiLlamaUsagePatchSource(source.replace("supportsUsageInStreaming: true,", "")),
@@ -65,7 +65,7 @@ test("Pi 0.84.2 llama.cpp patch is exact, idempotent, and version-gated", () => 
 					.replace(PI_LLAMA_USAGE_PATCH_MARKER, "")
 					.replace("supportsUsageInStreaming: true,", "supportsUsageInStreaming: false,"),
 			),
-		/0\.84\.2 llama\.cpp layout: upstream streaming usage capability was not found exactly once/,
+		/0\.85\.1 llama\.cpp layout: upstream streaming usage capability was not found exactly once/,
 	);
 	for (const fragment of PI_LLAMA_USAGE_REQUIRED_FRAGMENTS) {
 		assert.throws(

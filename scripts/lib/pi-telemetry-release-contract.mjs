@@ -1,10 +1,10 @@
 export const FEYNMAN_PI_TELEMETRY_PACKAGE =
 	"@earendil-works/pi-telemetry";
-export const FEYNMAN_PI_TELEMETRY_VERSION = "0.84.2";
+export const FEYNMAN_PI_TELEMETRY_VERSION = "0.85.1";
 export const FEYNMAN_PI_TELEMETRY_RESOLVED =
-	"https://registry.npmjs.org/@earendil-works/pi-telemetry/-/pi-telemetry-0.84.2.tgz";
+	"https://registry.npmjs.org/@earendil-works/pi-telemetry/-/pi-telemetry-0.85.1.tgz";
 export const FEYNMAN_PI_TELEMETRY_INTEGRITY =
-	"sha512-wg5caea7uIv1BHRBm2Y116RvFG4oSAiP5qk9tA2463PDGIr4K8M1Ceyyg5DOpF/shUUl0gk826yQJAeAcHYB9g==";
+	"sha512-Bg/YN6kA7Swja/NQxka8xFdecb4E/auIEGF2G5A25EaQXhRnPj300/7/KpgsDDMYUzHTDAv4RyUxaQPJKW81Rw==";
 
 const PI_TELEMETRY_LOCK_PATHS = Object.freeze([
 	"node_modules/@earendil-works/pi-telemetry",

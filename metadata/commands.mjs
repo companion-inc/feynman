@@ -50,10 +50,8 @@ export const livePackageCommandGroups = [
 	{
 		title: "Agents & Delegation",
 		commands: [
-			{ name: "agents", usage: "/agents" },
-			{ name: "run", usage: "/run <agent> <task>" },
-			{ name: "chain", usage: "/chain agent1 -> agent2" },
-			{ name: "parallel", usage: "/parallel agent1 -> agent2" },
+			{ name: "subagents", usage: "/subagents" },
+			{ name: "run", usage: "/run <agent> [task] [--bg] [--fork]" },
 		],
 	},
 	{

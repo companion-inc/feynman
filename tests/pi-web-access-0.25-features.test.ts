@@ -25,12 +25,10 @@ const runtimeRoot = resolve(appRoot, ".feynman", "npm");
 const webRoot = resolve(runtimeRoot, "node_modules", "pi-web-access");
 const fixtureRoot = resolve(
 	appRoot,
-	"tests",
 	"fixtures",
-	"pi-web-access-0.25.0",
+	"pi-web-access-0.28.0",
 );
-const runtimeRequire = createRequire(resolve(runtimeRoot, "package.json"));
-const jitiModule = await import(pathToFileURL(runtimeRequire.resolve("jiti")).href);
+const jitiModule = await import(pathToFileURL(createRequire(resolve(runtimeRoot, "node_modules", "@earendil-works", "pi-coding-agent", "package.json")).resolve("jiti")).href);
 const jiti = jitiModule.createJiti(import.meta.url, { moduleCache: false });
 
 function createPatchedPackageRoot(): string {
@@ -38,7 +36,7 @@ function createPatchedPackageRoot(): string {
 	const sources = new Map(
 		PI_WEB_ACCESS_PATCH_TARGETS.map((relativePath) => [
 			relativePath,
-			readFileSync(resolve(fixtureRoot, `${relativePath}.fixture`), "utf8"),
+			readFileSync(resolve(fixtureRoot, relativePath), "utf8"),
 		]),
 	);
 	const patched = patchPiWebAccessSources(sources, "executable feature fixture");
@@ -58,7 +56,7 @@ function createPatchedPackageRoot(): string {
 	}
 	writeFileSync(
 		resolve(root, "package.json"),
-		JSON.stringify({ name: "pi-web-access", version: "0.25.0", type: "module" }) + "\n",
+		JSON.stringify({ name: "pi-web-access", version: "0.28.0", type: "module" }) + "\n",
 		"utf8",
 	);
 	return root;

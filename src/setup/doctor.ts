@@ -1,4 +1,4 @@
-import { getUserName as getAlphaUserName, isLoggedIn as isAlphaLoggedIn } from "@companion-ai/alpha-hub/lib";
+import { getUserName as getAlphaUserName, isLoggedIn as isAlphaLoggedIn } from "@advaitpaliwal/alpha-hub/lib";
 
 import { readFileSync } from "node:fs";
 

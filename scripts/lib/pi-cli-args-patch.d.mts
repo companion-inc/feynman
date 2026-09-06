@@ -1,4 +1,4 @@
-export declare const PI_CLI_ARGS_REQUIRED_VERSION: "0.84.2";
+export declare const PI_CLI_ARGS_REQUIRED_VERSION: "0.85.1";
 export declare const PI_CLI_ARGS_UPSTREAM_FIX: "https://github.com/earendil-works/pi/commit/74786a748f5314cc2127ebbcfa2d732e9b8433f5";
 export declare const PI_CLI_ARGS_UPSTREAM_DOCS: "https://github.com/earendil-works/pi/commit/62bcbf6be0206cc4fd2ca0e35dd5eb879ca6c8e7";
 export declare const LEGACY_PI_RUNTIME_PACKAGE_ALIASES: Readonly<{

@@ -70,48 +70,61 @@ jobs:
           feynman update
           feynman search status
 
-      - name: Assert pi-subagents spawn patch applied (issue 172)
-        # Running the CLI above applies launch-time patches to the bundled
-        # workspace. The patched pi-spawn must prefer FEYNMAN_PI_CLI_PATH so
-        # subagents never treat --mode as a module path.
+      - name: Assert exact Pi and native subagent source contracts
+        # Pi 0.85.1 / pi-subagents 0.65.1 use native sessions, not pi-spawn.ts.
         run: |
-          node -e '
-            const { execSync } = require("node:child_process");
-            const { existsSync, readFileSync } = require("node:fs");
-            const { join } = require("node:path");
-            const root = execSync("npm root -g").toString().trim();
-            const pkg = join(root, "@advaitpaliwal", "feynman");
-            const candidates = [
-              join(pkg, ".feynman", "npm", "node_modules", "pi-subagents", "src", "runs", "shared", "pi-spawn.ts"),
-              join(pkg, ".feynman", "npm", "node_modules", "pi-subagents", "pi-spawn.ts"),
-            ];
-            const found = candidates.filter((p) => existsSync(p));
-            if (found.length === 0) throw new Error("pi-spawn source not found under " + pkg);
-            const patched = found.filter((p) => readFileSync(p, "utf8").includes("FEYNMAN_PI_CLI_PATH"));
-            if (patched.length === 0) throw new Error("pi-spawn patch NOT applied to any of: " + found.join(", "));
-            console.log("pi-spawn patch applied:", patched.join(", "));
-          '
-
-      - name: Assert alpha-hub structured search parser applied (issue 167)
-        run: |
-          node -e '
-            const { execSync } = require("node:child_process");
-            const { existsSync, readFileSync } = require("node:fs");
-            const { join } = require("node:path");
-            const root = execSync("npm root -g").toString().trim();
-            const pkg = join(root, "@advaitpaliwal", "feynman");
-            const candidates = [
-              join(pkg, "node_modules", "@companion-ai", "alpha-hub", "src", "lib", "index.js"),
-              join(pkg, ".feynman", "npm", "node_modules", "@companion-ai", "alpha-hub", "src", "lib", "index.js"),
-            ];
-            const found = candidates.filter((p) => existsSync(p));
-            if (found.length === 0) throw new Error("alpha-hub index.js not found under " + pkg);
-            const patched = found.filter((p) => readFileSync(p, "utf8").includes("parseStructuredSearchResults"));
-            if (patched.length !== found.length) {
-              throw new Error("structured search parser patch missing on: " + found.filter((p) => !patched.includes(p)).join(", "));
+          node --input-type=module <<'NODE'
+          import assert from "node:assert/strict";
+          import { execFileSync } from "node:child_process";
+          import { readFileSync } from "node:fs";
+          import { join } from "node:path";
+          import { pathToFileURL } from "node:url";
+          const pkg = join(execFileSync("npm", ["root", "-g"], { encoding: "utf8", shell: process.platform === "win32" }).trim(), "@advaitpaliwal", "feynman");
+          const load = (name) => import(pathToFileURL(join(pkg, "scripts", "lib", name)).href);
+          const { assertPatchedPiCliArgsPackageRoot, PI_CLI_ARGS_REQUIRED_VERSION } = await load("pi-cli-args-patch.mjs");
+          const { assertPiSubagentsNativeSources, PI_SUBAGENTS_NATIVE_VERSION } = await load("pi-subagents-native-patch.mjs");
+          assert.equal(PI_CLI_ARGS_REQUIRED_VERSION, "0.85.1");
+          assert.equal(PI_SUBAGENTS_NATIVE_VERSION, "0.65.1");
+          for (const modules of [join(pkg, "node_modules"), join(pkg, ".feynman", "npm", "node_modules")]) {
+            for (const name of ["pi-coding-agent", "pi-agent-core", "pi-ai", "pi-tui", "pi-telemetry"]) {
+              const manifest = JSON.parse(readFileSync(join(modules, "@earendil-works", name, "package.json"), "utf8"));
+              assert.equal(manifest.name, "@earendil-works/" + name);
+              assert.equal(manifest.version, PI_CLI_ARGS_REQUIRED_VERSION);
             }
-            console.log("alpha-hub structured parser applied:", patched.join(", "));
-          '
+            assertPatchedPiCliArgsPackageRoot(join(modules, "@earendil-works", "pi-coding-agent"), "installed Pi CLI");
+          }
+          const subagents = join(pkg, ".feynman", "npm", "node_modules", "pi-subagents");
+          const manifest = JSON.parse(readFileSync(join(subagents, "package.json"), "utf8"));
+          assert.equal(manifest.name, "pi-subagents");
+          assert.equal(manifest.version, PI_SUBAGENTS_NATIVE_VERSION);
+          assertPiSubagentsNativeSources((relativePath) => readFileSync(join(subagents, relativePath), "utf8"), "installed native subagents");
+          console.log("Exact coordinated Pi and native-subagent contracts verified");
+          NODE
+
+      - name: Assert exact personal Alpha Hub source contracts
+        run: |
+          node --input-type=module <<'NODE'
+          import assert from "node:assert/strict";
+          import { execFileSync } from "node:child_process";
+          import { readFileSync } from "node:fs";
+          import { join } from "node:path";
+          import { pathToFileURL } from "node:url";
+          const pkg = join(execFileSync("npm", ["root", "-g"], { encoding: "utf8", shell: process.platform === "win32" }).trim(), "@advaitpaliwal", "feynman");
+          const load = (name) => import(pathToFileURL(join(pkg, "scripts", "lib", name)).href);
+          const { assertAlphaHubAuthSource, ALPHA_HUB_AUTH_014_SOURCE_CONTRACT } = await load("alpha-hub-auth-patch.mjs");
+          const { assertAlphaHubSearchSource, assertAlphaHubSearchResultsSource, ALPHA_HUB_SEARCH_014_SOURCE_CONTRACT, ALPHA_HUB_RESULTS_014_SOURCE_CONTRACT } = await load("alpha-hub-search-patch.mjs");
+          for (const contract of [ALPHA_HUB_AUTH_014_SOURCE_CONTRACT, ALPHA_HUB_SEARCH_014_SOURCE_CONTRACT, ALPHA_HUB_RESULTS_014_SOURCE_CONTRACT]) assert.equal(contract.version, "0.1.4");
+          for (const modules of [join(pkg, "node_modules"), join(pkg, ".feynman", "npm", "node_modules")]) {
+            const root = join(modules, "@advaitpaliwal", "alpha-hub");
+            const manifest = JSON.parse(readFileSync(join(root, "package.json"), "utf8"));
+            assert.equal(manifest.name, "@advaitpaliwal/alpha-hub");
+            assert.equal(manifest.version, "0.1.4");
+            assertAlphaHubAuthSource(readFileSync(join(root, "src", "lib", "auth.js"), "utf8"));
+            assertAlphaHubSearchSource(readFileSync(join(root, "src", "lib", "alphaxiv.js"), "utf8"));
+            assertAlphaHubSearchResultsSource(readFileSync(join(root, "src", "lib", "index.js"), "utf8"));
+          }
+          console.log("Exact Alpha Hub auth, discovery, and live-format parser contracts verified in both copies");
+          NODE
 
       - name: Configure model auth for live smokes
         if: env.HAS_OPENAI_KEY == 'true'
@@ -144,34 +157,7 @@ jobs:
           grep -q "CI_TEXT_OK" smoke-text.log
           echo "text mode smoke ok"
 
-      - name: Subagent spawn diagnostics
-        if: env.FEYNMAN_HOME != ''
-        run: |
-          node -e '
-            const { execSync } = require("node:child_process");
-            const { existsSync, readFileSync } = require("node:fs");
-            const { join } = require("node:path");
-            const root = execSync("npm root -g").toString().trim();
-            const pkg = join(root, "@advaitpaliwal", "feynman");
-            const spawnPath = join(pkg, ".feynman", "npm", "node_modules", "pi-subagents", "src", "runs", "shared", "pi-spawn.ts");
-            const src = existsSync(spawnPath) ? readFileSync(spawnPath, "utf8") : "";
-            console.log("pi-spawn exists:", existsSync(spawnPath));
-            console.log("has FEYNMAN_PI_CLI_PATH:", src.includes("FEYNMAN_PI_CLI_PATH"));
-            console.log("has wrapperPiCliPath recovery:", src.includes("wrapperPiCliPath"));
-            console.log("has argv2 dep:", src.includes("argv2?: string;"));
-            for (const candidate of [
-              join(pkg, "node_modules", "@earendil-works", "pi-coding-agent", "dist", "cli.js"),
-              join(pkg, ".feynman", "npm", "node_modules", "@earendil-works", "pi-coding-agent", "dist", "cli.js"),
-              join(pkg, "dist", "pi", "pi-cli-wrapper.js"),
-            ]) console.log("exists:", existsSync(candidate), candidate);
-            const agentsPath = join(pkg, ".feynman", "npm", "node_modules", "pi-subagents", "src", "agents", "agents.ts");
-            const agents = existsSync(agentsPath) ? readFileSync(agentsPath, "utf8") : "";
-            const used = (agents.match(/loadAgentsFromDir\(userDir, "user"\)/g) ?? []).length;
-            const declared = (agents.match(/const userDir = /g) ?? []).length;
-            console.log("agents.ts userDir used:", used, "declared:", declared);
-          '
-
-      - name: Live subagent smoke (issue 172 end-to-end)
+      - name: Live native-session subagent smoke
         if: env.FEYNMAN_HOME != ''
         run: |
           feynman --mode json --prompt 'Use the subagent tool to run the "researcher" agent with the task: Reply with the single word PONG and stop. After the subagent returns, reply with exactly RESULT=<the single word the subagent returned> and nothing else.' > subagent.log 2>&1 || { tail -80 subagent.log; exit 1; }
@@ -203,7 +189,7 @@ jobs:
     steps:
       - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
-          node-version: "24.18.0"
+          node-version: "24.20.0"
 
       - name: Install the published native bundle through the live Unix installer
         if: runner.os != 'Windows'
@@ -236,6 +222,7 @@ jobs:
           esac
           bundle="$install_root/app/feynman-$expected-$os-$arch"
           test -x "$bundle/feynman"
+          "$bundle/node/bin/node" "$bundle/app/scripts/verify-package-artifact.mjs" "$bundle/app" --pruned-native
           "$bundle/node/bin/node" \
             "$bundle/app/scripts/verify-installed-runtime.mjs" \
             "$bin"
@@ -272,6 +259,12 @@ jobs:
             throw "Installed Windows launcher failed --help."
           }
           $bundle = Join-Path $installRoot "feynman-$expected-win32-x64"
+          & (Join-Path $bundle "node\node.exe") `
+            (Join-Path $bundle "app\scripts\verify-package-artifact.mjs") `
+            (Join-Path $bundle "app") --pruned-native
+          if ($LASTEXITCODE -ne 0) {
+            throw "Installed Windows artifact source contracts failed."
+          }
           & (Join-Path $bundle "node\node.exe") `
             (Join-Path $bundle "app\scripts\verify-installed-runtime.mjs") `
             $bin
@@ -364,13 +357,13 @@ jobs:
           - os: ubuntu-latest
             node: "22.22.0"
           - os: ubuntu-latest
-            node: "24.18.0"
+            node: "24.20.0"
           - os: ubuntu-latest
             node: "25"
           - os: macos-14
-            node: "24.18.0"
+            node: "24.20.0"
           - os: windows-latest
-            node: "24.18.0"
+            node: "24.20.0"
           - os: windows-latest
             node: "25"
     runs-on: ${{ matrix.os }}
@@ -443,6 +436,8 @@ jobs:
           if command -v cygpath >/dev/null 2>&1; then
             global_node_modules=$(cygpath -u "$global_node_modules")
           fi
+          node "$global_node_modules/@advaitpaliwal/feynman/scripts/verify-package-artifact.mjs" \
+            "$global_node_modules/@advaitpaliwal/feynman"
           node "$global_node_modules/@advaitpaliwal/feynman/scripts/verify-installed-runtime.mjs" "$global_bin"
           node "$global_node_modules/@advaitpaliwal/feynman/scripts/verify-installed-docparser.mjs"
 
@@ -492,6 +487,11 @@ jobs:
           $native = Join-Path $bundleRoot "feynman.cmd"
           $nativeNode = Join-Path $bundleRoot "node/node.exe"
           $nativeVerifier = Join-Path $bundleRoot "app/scripts/verify-installed-runtime.mjs"
+          & $nativeNode (Join-Path $bundleRoot "app/scripts/verify-package-artifact.mjs") `
+            (Join-Path $bundleRoot "app") --pruned-native
+          if ($LASTEXITCODE -ne 0) {
+            throw "Windows native artifact source contracts failed: $LASTEXITCODE"
+          }
           & $nativeNode $nativeVerifier $native
           if ($LASTEXITCODE -ne 0) {
             throw "Windows native launcher failed installed-runtime verification: $LASTEXITCODE"

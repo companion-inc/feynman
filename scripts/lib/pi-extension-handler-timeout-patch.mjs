@@ -25,7 +25,7 @@
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 
-export const PI_EXTENSION_HANDLER_TIMEOUT_REQUIRED_VERSION = "0.84.2";
+export const PI_EXTENSION_HANDLER_TIMEOUT_REQUIRED_VERSION = "0.85.1";
 export const PI_EXTENSION_HANDLER_TIMEOUT_TARGET =
 	"dist/core/extensions/runner.js";
 export const PI_EXTENSION_HANDLER_TIMEOUT_MARKER =

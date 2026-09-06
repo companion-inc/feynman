@@ -79,11 +79,11 @@ test("prepare runtime workspace pins audited transitive runtime overrides", asyn
 	const runtimeInstallSource = readFileSync(resolve(process.cwd(), "scripts", "lib", "runtime-workspace-install.mjs"), "utf8");
 
 	assert.match(runtimeWorkspaceSource, /"@mozilla\/readability": "0\.6\.0"/);
-	assert.match(runtimeWorkspaceSource, /"@opentelemetry\/sdk-node": "0\.221\.0"/);
-	assert.match(runtimeWorkspaceSource, /"@opentelemetry\/resources": "2\.10\.0"/);
-	assert.match(runtimeWorkspaceSource, /"@llamaindex\/liteparse": "2\.14\.0"/);
-	assert.match(runtimeWorkspaceSource, /"ip-address": "10\.5\.0"/);
-	assert.match(runtimeWorkspaceSource, /undici: "8\.10\.0"/);
+	assert.match(runtimeWorkspaceSource, /"@opentelemetry\/sdk-node": "0\.222\.0"/);
+	assert.match(runtimeWorkspaceSource, /"@opentelemetry\/resources": "2\.11\.0"/);
+	assert.match(runtimeWorkspaceSource, /"@llamaindex\/liteparse": "2\.14\.3"/);
+	assert.match(runtimeWorkspaceSource, /"ip-address": "10\.7\.0"/);
+	assert.match(runtimeWorkspaceSource, /undici: "8\.10\.2"/);
 	assert.match(runtimeWorkspaceSource, /"undici",\n\];/);
 	assert.match(runtimeWorkspaceSource, /overrides: RUNTIME_PACKAGE_OVERRIDES/);
 	assert.match(installedRuntimeSource, /buildSourceRuntimeArchive/);
@@ -130,7 +130,7 @@ test("published manifest pins the Undici override for npm 10 consumers", async (
 		overrides?: Record<string, unknown>;
 	};
 
-	assert.equal(manifest.dependencies?.undici, "8.10.0");
+	assert.equal(manifest.dependencies?.undici, "8.10.2");
 	assert.equal(manifest.overrides?.undici, manifest.dependencies?.undici);
 	assert.doesNotMatch(String(manifest.overrides?.undici), /^\$/);
 });
@@ -155,12 +155,14 @@ test("release manifests pin current document and website security repairs", () =
 		packages?: Record<string, { version?: string }>;
 	};
 
-	assert.equal(manifest.dependencies?.["pdfjs-dist"], "^6.2.108");
-	assert.equal(lock.packages?.["node_modules/pdfjs-dist"]?.version, "6.2.108");
+	assert.equal(manifest.dependencies?.["pdfjs-dist"], "^6.3.289");
+	assert.equal(lock.packages?.["node_modules/pdfjs-dist"]?.version, "6.3.289");
 	assert.equal(manifest.overrides?.nanoid, "3.3.18");
-	assert.equal(lock.packages?.["node_modules/nanoid"]?.version, "3.3.18");
-	assert.equal(manifest.overrides?.["ip-address"], "10.5.0");
-	assert.equal(lock.packages?.["node_modules/ip-address"]?.version, "10.5.0");
+	const nanoidEntries = Object.entries(lock.packages ?? {}).filter(([path]) => path.endsWith("/node_modules/nanoid") || path === "node_modules/nanoid");
+	assert.ok(nanoidEntries.length > 0, "the resolved PostCSS nanoid dependency must remain covered");
+	for (const [path, entry] of nanoidEntries) assert.equal(entry.version, "3.3.18", path);
+	assert.equal(manifest.overrides?.["ip-address"], "10.7.0");
+	assert.equal(lock.packages?.["node_modules/ip-address"]?.version, "10.7.0");
 	for (const packageName of [
 		"@llamaindex/liteparse-darwin-arm64",
 		"@llamaindex/liteparse-darwin-x64",
@@ -170,15 +172,25 @@ test("release manifests pin current document and website security repairs", () =
 		"@llamaindex/liteparse-win32-arm64-msvc",
 		"@llamaindex/liteparse-win32-x64-msvc",
 	]) {
-		assert.equal(manifest.optionalDependencies?.[packageName], "2.14.0");
-		assert.equal(lock.packages?.[""]?.optionalDependencies?.[packageName], "2.14.0");
-		assert.equal(lock.packages?.[`node_modules/${packageName}`]?.version, "2.14.0");
+		assert.equal(manifest.optionalDependencies?.[packageName], "2.14.3");
+		assert.equal(lock.packages?.[""]?.optionalDependencies?.[packageName], "2.14.3");
+		assert.equal(lock.packages?.[`node_modules/${packageName}`]?.version, "2.14.3");
 		assert.equal(lock.packages?.[`node_modules/${packageName}`]?.optional, true);
 	}
-	assert.equal(websiteManifest.overrides?.["js-yaml"], "4.3.1");
-	assert.equal(websiteLock.packages?.["node_modules/js-yaml"]?.version, "4.3.1");
-	assert.equal(websiteManifest.overrides?.nanoid, "3.3.18");
-	assert.equal(websiteLock.packages?.["node_modules/nanoid"]?.version, "3.3.18");
+	// Keep the approved compatible majors used by Astro/cosmiconfig, PostCSS,
+	// and AJV. Overrides may resolve beneath consumers rather than at the root.
+	for (const [packageName, version] of [
+		["js-yaml", "4.3.2"],
+		["nanoid", "3.3.18"],
+		["fast-uri", "3.1.7"],
+	]) {
+		assert.equal(websiteManifest.overrides?.[packageName!], version);
+		const entries = Object.entries(websiteLock.packages ?? {}).filter(([path]) =>
+			path === `node_modules/${packageName}` || path.endsWith(`/node_modules/${packageName}`),
+		);
+		assert.ok(entries.length > 0, `${packageName} must remain covered in the website lock`);
+		for (const [path, entry] of entries) assert.equal(entry.version, version, path);
+	}
 });
 
 test("prepare runtime workspace links legacy Pi aliases instead of installing duplicates", async () => {

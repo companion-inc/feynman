@@ -128,6 +128,11 @@ function patchBedrockResponseHeaders(source) {
 		assertBedrockResponseHeadersSource(source);
 		return source;
 	}
+	if (source.includes("function addResponseHeadersMiddleware(")) {
+		const annotated = `// ${PI_BEDROCK_RESPONSE_HEADERS_MARKER}\n${source}`;
+		assertBedrockResponseHeadersSource(annotated);
+		return annotated;
+	}
 	let patched = replaceRequired(
 		source,
 		"            const client = new BedrockRuntimeClient(config);",

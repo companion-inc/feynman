@@ -14,8 +14,9 @@ import {
 
 const PI_WEB_ACCESS_FIXTURE_ROOT = join(
 	import.meta.dirname,
+	"..",
 	"fixtures",
-	"pi-web-access-0.25.0",
+	"pi-web-access-0.28.0",
 );
 const PI_WEB_ACCESS_RUNTIME_ROOT = join(
 	import.meta.dirname,
@@ -28,7 +29,7 @@ const PI_WEB_ACCESS_RUNTIME_ROOT = join(
 
 test("Windows cookie forward port is exact, digest-gated, and idempotent", () => {
 	const baseline = readFileSync(
-		join(PI_WEB_ACCESS_FIXTURE_ROOT, "chrome-cookies.ts.fixture"),
+		join(PI_WEB_ACCESS_FIXTURE_ROOT, "chrome-cookies.ts"),
 		"utf8",
 	);
 	const patched = patchPiWebAccessWindowsCookiesSource(baseline);

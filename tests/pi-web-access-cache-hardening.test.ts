@@ -24,8 +24,9 @@ import {
 
 const PI_WEB_ACCESS_FIXTURE_ROOT = join(
 	import.meta.dirname,
+	"..",
 	"fixtures",
-	"pi-web-access-0.25.0",
+	"pi-web-access-0.28.0",
 );
 
 function readPiWebAccessFixtureSources(): Map<string, string> {
@@ -33,7 +34,7 @@ function readPiWebAccessFixtureSources(): Map<string, string> {
 		PI_WEB_ACCESS_PATCH_TARGETS.map((relativePath) => [
 			relativePath,
 			readFileSync(
-				join(PI_WEB_ACCESS_FIXTURE_ROOT, `${relativePath}.fixture`),
+				join(PI_WEB_ACCESS_FIXTURE_ROOT, relativePath),
 				"utf8",
 			),
 		]),

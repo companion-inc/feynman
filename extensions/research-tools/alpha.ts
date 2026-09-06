@@ -6,7 +6,7 @@ import {
 	listPaperAnnotations,
 	readPaperCode,
 	searchPapers,
-} from "@companion-ai/alpha-hub/lib";
+} from "@advaitpaliwal/alpha-hub/lib";
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { Type } from "typebox";
 

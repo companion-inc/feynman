@@ -1,13 +1,25 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+import { pathToFileURL } from "node:url";
 
 import type { Context } from "@earendil-works/pi-ai";
 import { Type } from "typebox";
 
-import { patchPiRuntimeNodeModules } from "../src/pi/runtime-patches.js";
+import { patchPiAgentSessionSource } from "../scripts/lib/pi-runtime-correctness-patch.mjs";
 
 const appRoot = process.cwd();
-patchPiRuntimeNodeModules(appRoot);
+async function loadCodingAgentWithPatchedSession() {
+	const codingAgent = await import("@earendil-works/pi-coding-agent");
+	const moduleUrl = pathToFileURL(resolve(appRoot, "node_modules", "@earendil-works",
+		"pi-coding-agent", "dist", "core", "agent-session.js"));
+	const source = patchPiAgentSessionSource(readFileSync(moduleUrl, "utf8"));
+	const linked = source.replace(/from "([^"]+)";/g, (_match, specifier: string) =>
+		`from ${JSON.stringify(specifier.startsWith(".") ? new URL(specifier, moduleUrl).href : import.meta.resolve(specifier))};`);
+	const session = await import(`data:text/javascript;base64,${Buffer.from(linked).toString("base64")}`) as typeof codingAgent;
+	return { ...codingAgent, AgentSession: session.AgentSession };
+}
 
 function createResourceLoader(runtime: unknown) {
 	return {
@@ -30,7 +42,7 @@ function createResourceLoader(runtime: unknown) {
 test("real image-only steering and follow-up delivery clears colliding empty queue keys", async (t) => {
 	const [{ Agent }, codingAgent, piAi] = await Promise.all([
 		import("@earendil-works/pi-agent-core"),
-		import("@earendil-works/pi-coding-agent"),
+		loadCodingAgentWithPatchedSession(),
 		import("@earendil-works/pi-ai/compat"),
 	]);
 	const { AgentSession, SessionManager, SettingsManager, convertToLlm } = codingAgent;
@@ -160,7 +172,7 @@ test("real image-only steering and follow-up delivery clears colliding empty que
 test("triggerTurn-false custom messages wait until tool results and the run settle", async (t) => {
 	const [{ Agent }, codingAgent, piAi] = await Promise.all([
 		import("@earendil-works/pi-agent-core"),
-		import("@earendil-works/pi-coding-agent"),
+		loadCodingAgentWithPatchedSession(),
 		import("@earendil-works/pi-ai/compat"),
 	]);
 	const { AgentSession, SessionManager, SettingsManager, convertToLlm } = codingAgent;

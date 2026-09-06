@@ -1,0 +1,2 @@
+# Exact npm source fixture: retain upstream whitespace and its recorded digest.
+fixtures/pi-web-access-0.28.0/rsc-extract.ts -whitespace

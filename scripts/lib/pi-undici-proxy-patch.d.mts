@@ -1,4 +1,4 @@
-export const FEYNMAN_UNDICI_VERSION: "8.10.0";
+export const FEYNMAN_UNDICI_VERSION: "8.10.2";
 
 export function patchPiCodingAgentUndiciPackageJsonSource(source: string): string;
 export function patchPiCodingAgentUndiciShrinkwrapSource(source: string): string;

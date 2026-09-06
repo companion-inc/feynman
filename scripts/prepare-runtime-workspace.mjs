@@ -10,7 +10,7 @@ import {
 } from "./lib/pi-cli-args-patch.mjs";
 import {
 	assertPiEditLineEndingsVersion,
-	PI_EDIT_LINE_ENDINGS_RUNTIME_TARGETS,
+	PI_EDIT_LINE_ENDINGS_PATCH_TARGETS,
 	patchPiEditLineEndingsSource,
 } from "./lib/pi-edit-line-endings-patch.mjs";
 import {
@@ -56,6 +56,7 @@ import {
 } from "./lib/package-root-patch-utils.mjs";
 import { patchPiStateFilePermissionsSource } from "./lib/pi-state-file-permissions-patch.mjs";
 import { patchPiUndiciProxyTree } from "./lib/pi-undici-proxy-patch.mjs";
+import { patchPiEsbuildPackageTree } from "./lib/pi-esbuild-package-patch.mjs";
 import { patchPiBraceExpansionTree } from "./lib/pi-shrinkwrap-security-patch.mjs";
 import {
 	patchPiEditorSource,
@@ -110,51 +111,56 @@ const workspacePackageJsonPath = resolve(workspaceDir, "package.json");
 const workspaceNpmConfigPath = resolve(workspaceDir, ".npmrc");
 const workspaceArchivePath = resolve(feynmanDir, "runtime-workspace.tgz");
 const workspaceArchiveDigestPath = resolve(feynmanDir, "runtime-workspace.sha256");
-const PRUNE_VERSION = 8;
-const PI_RUNTIME_FALLBACK_VERSION = "0.84.2";
+const PRUNE_VERSION = 9;
+const PI_RUNTIME_FALLBACK_VERSION = "0.85.1";
 const RUNTIME_PACKAGE_OVERRIDES = {
+	"esbuild": "0.28.2",
+	"@earendil-works/pi-server": "0.85.1",
 	"@mozilla/readability": "0.6.0",
 	"@modelcontextprotocol/sdk": {
-		"@hono/node-server": "2.0.12",
+		"@hono/node-server": "2.1.1",
 	},
-	"@opentelemetry/core": "2.10.0",
-	"@opentelemetry/exporter-logs-otlp-grpc": "0.221.0",
-	"@opentelemetry/exporter-logs-otlp-http": "0.221.0",
-	"@opentelemetry/exporter-logs-otlp-proto": "0.221.0",
-	"@opentelemetry/exporter-metrics-otlp-grpc": "0.221.0",
-	"@opentelemetry/exporter-metrics-otlp-http": "0.221.0",
-	"@opentelemetry/exporter-metrics-otlp-proto": "0.221.0",
-	"@opentelemetry/exporter-prometheus": "0.221.0",
-	"@opentelemetry/exporter-trace-otlp-grpc": "0.221.0",
-	"@opentelemetry/exporter-trace-otlp-http": "0.221.0",
-	"@opentelemetry/exporter-trace-otlp-proto": "0.221.0",
-	"@opentelemetry/exporter-zipkin": "2.10.0",
-	"@opentelemetry/instrumentation": "0.221.0",
-	"@opentelemetry/otlp-exporter-base": "0.221.0",
-	"@opentelemetry/otlp-grpc-exporter-base": "0.221.0",
-	"@opentelemetry/otlp-transformer": "0.221.0",
-	"@opentelemetry/propagator-b3": "2.10.0",
-	"@opentelemetry/propagator-jaeger": "2.10.0",
-	"@opentelemetry/resources": "2.10.0",
-	"@opentelemetry/sdk-logs": "0.221.0",
-	"@opentelemetry/sdk-metrics": "2.10.0",
-	"@opentelemetry/sdk-node": "0.221.0",
-	"@opentelemetry/sdk-trace-base": "2.10.0",
-	"@opentelemetry/sdk-trace-node": "2.10.0",
-	"@llamaindex/liteparse": "2.14.0",
+	"@opentelemetry/core": "2.11.0",
+	"@opentelemetry/exporter-logs-otlp-grpc": "0.222.0",
+	"@opentelemetry/exporter-logs-otlp-http": "0.222.0",
+	"@opentelemetry/exporter-logs-otlp-proto": "0.222.0",
+	"@opentelemetry/exporter-metrics-otlp-grpc": "0.222.0",
+	"@opentelemetry/exporter-metrics-otlp-http": "0.222.0",
+	"@opentelemetry/exporter-metrics-otlp-proto": "0.222.0",
+	"@opentelemetry/exporter-prometheus": "0.222.0",
+	"@opentelemetry/exporter-trace-otlp-grpc": "0.222.0",
+	"@opentelemetry/exporter-trace-otlp-http": "0.222.0",
+	"@opentelemetry/exporter-trace-otlp-proto": "0.222.0",
+	"@opentelemetry/exporter-zipkin": "2.11.0",
+	"@opentelemetry/instrumentation": "0.222.0",
+	"@opentelemetry/otlp-exporter-base": "0.222.0",
+	"@opentelemetry/otlp-grpc-exporter-base": "0.222.0",
+	"@opentelemetry/otlp-transformer": "0.222.0",
+	"@opentelemetry/propagator-b3": "2.11.0",
+	"@opentelemetry/propagator-jaeger": "2.11.0",
+	"@opentelemetry/resources": "2.11.0",
+	"@opentelemetry/sdk-logs": "0.222.0",
+	"@opentelemetry/sdk-metrics": "2.11.0",
+	"@opentelemetry/sdk-node": "0.222.0",
+	"@opentelemetry/sdk-trace-base": "2.11.0",
+	"@opentelemetry/sdk-trace-node": "2.11.0",
+	"@llamaindex/liteparse": "2.14.3",
 	"brace-expansion": "5.0.9",
-	"ip-address": "10.5.0",
-	"fast-uri": "3.1.6",
+	"ip-address": "10.7.0",
+	"fast-uri": "3.1.7",
 	qs: "6.16.0",
-	undici: "8.10.0",
+	undici: "8.10.2",
 };
 const PINNED_RUNTIME_PACKAGES = [
+	"@earendil-works/pi-client",
+	"@earendil-works/pi-server",
 	"@earendil-works/pi-agent-core",
 	"@earendil-works/pi-ai",
 	"@earendil-works/pi-coding-agent",
 	FEYNMAN_PI_TELEMETRY_PACKAGE,
 	"@earendil-works/pi-tui",
 	"brace-expansion",
+	"esbuild",
 	"typebox",
 	"undici",
 ];
@@ -395,7 +401,7 @@ function writeManifest(packageSpecs, runtimeTreeHash = computeRuntimeTreeHash(wo
 }
 
 function pruneWorkspace() {
-	const result = spawnSync(process.execPath, [resolve(appRoot, "scripts", "prune-runtime-deps.mjs"), workspaceDir], {
+	const result = spawnSync(process.execPath, [resolve(appRoot, "scripts", "prune-runtime-deps.mjs"), workspaceDir, "--platform-runtime"], {
 		stdio: "inherit",
 	});
 	if (result.status !== 0) {
@@ -720,7 +726,7 @@ function patchBundledPiEditLineEndings() {
 			readFileSync(resolve(packageRoot, "package.json"), "utf8"),
 		).version;
 		assertPiEditLineEndingsVersion(version, `runtime workspace ${scope}/pi-coding-agent`);
-		for (const relativePath of PI_EDIT_LINE_ENDINGS_RUNTIME_TARGETS) {
+		for (const relativePath of PI_EDIT_LINE_ENDINGS_PATCH_TARGETS) {
 			changed = patchScopedPiWorkspaceFile(
 				"pi-coding-agent",
 				relativePath,
@@ -872,7 +878,7 @@ function patchBundledPiDocparser() {
 function patchBundledAlphaHub() {
 	const alphaHubLib = resolve(
 		workspaceNodeModulesDir,
-		"@companion-ai",
+		"@advaitpaliwal",
 		"alpha-hub",
 		"src",
 		"lib",
@@ -891,7 +897,7 @@ function patchBundledAlphaHub() {
 		const filePath = resolve(alphaHubLib, fileName);
 		if (!existsSync(filePath)) continue;
 		const source = readFileSync(filePath, "utf8");
-		const patched = patchSource(source);
+		const patched = patchSource(source, { version: "0.1.4" });
 		if (patched !== source) {
 			writeFileSync(filePath, patched, "utf8");
 			changed = true;
@@ -944,6 +950,9 @@ function patchBundledRuntime(
 	// Fail closed on every matching Pi parser before any runtime patch writes.
 	// This keeps a malformed secondary package from leaving a partially patched
 	// fallback candidate.
+	changed = patchPiEsbuildPackageTree(
+		workspaceNodeModulesDir, resolve(appRoot, "node_modules", "esbuild"), { runtime: true },
+	) || changed;
 	changed = patchBundledPiCliArgs(piCliArgsCandidates) || changed;
 	changed = patchBundledPiCodingAgentPackageJson() || changed;
 	changed = patchBundledPiAgentCore() || changed;
@@ -1016,6 +1025,7 @@ const rebuildWorkspace = process.argv.includes("--rebuild");
 const patchExistingWorkspace = process.argv.includes("--patch-existing");
 
 function patchRootRuntimeDependencies() {
+	patchPiEsbuildPackageTree(resolve(appRoot, "node_modules"));
 	patchMcpSdkManifest(resolve(appRoot, "node_modules"));
 	patchPiBraceExpansionTree(
 		resolve(appRoot, "node_modules"),
@@ -1068,6 +1078,11 @@ console.log("[feynman] preparing vendored runtime workspace...");
 prepareWorkspace(packageSpecs, refreshRuntimeLock);
 const piCliArgsCandidates = collectBundledPiCliArgsCandidates();
 patchRootRuntimeDependencies();
+// npm restores Pi's published bundled files before local repairs. Normalize
+// their exact compiler metadata/binaries before validating the pruning graph.
+patchPiEsbuildPackageTree(
+	workspaceNodeModulesDir, resolve(appRoot, "node_modules", "esbuild"), { runtime: true },
+);
 pruneWorkspace();
 linkLegacyPiRuntimeAliases();
 patchBundledRuntime(piCliArgsCandidates);

@@ -107,6 +107,15 @@ export function patchPiSessionTailSource(source) {
 		assertPiSessionTailPatchedSource(source);
 		return source;
 	}
+	const upstreamRepair = PI_SESSION_TAIL_REPAIR_BLOCK.replace(
+		`    // ${PI_SESSION_TAIL_PATCH_MARKER}. Remove after the bundled Pi release includes commit 0b5ee5d8.\n    if (pending) appendFileSync`,
+		"    if (pending)\n        appendFileSync",
+	);
+	if (source.includes(upstreamRepair)) {
+		const annotated = replaceRequired(source, upstreamRepair, PI_SESSION_TAIL_REPAIR_BLOCK, "upstream tail repair");
+		assertPiSessionTailPatchedSource(annotated);
+		return annotated;
+	}
 
 	let patched = replaceRequired(
 		source,

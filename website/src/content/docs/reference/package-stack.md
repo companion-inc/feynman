@@ -17,7 +17,7 @@ These are installed by default with every Feynman installation. They provide the
 
 | Package | Purpose |
 | --- | --- |
-| `@companion-ai/alpha-hub` | Direct alphaXiv tools for paper and author workflows |
+| `@advaitpaliwal/alpha-hub` | Direct alphaXiv tools for paper and author workflows |
 | `pi-subagents` | Parallel agent spawning for literature gathering and task decomposition. Powers the multi-agent workflows |
 | `pi-btw` | Side conversations while the main research agent is busy, including `/btw` follow-ups, custom-provider continuity, and handoff back into the main thread |
 | `pi-docparser` | Parse PDFs, Office documents, spreadsheets, and images through bounded, isolated native workers |
@@ -75,3 +75,7 @@ feynman update pi-subagents
 Running `feynman update` without arguments updates unpinned packages to their current registry versions and repairs stale exact-pinned core packages to the versions shipped by Feynman. Semver ranges and registry tags remain unpinned selectors and are preserved during installation. Pass a specific package name to reconcile just that one. Updates are safe and preserve your configuration.
 
 This command updates Pi packages inside Feynman's environment. To upgrade the standalone Feynman app itself, rerun the installer from the [Installation guide](/docs/getting-started/installation).
+
+## Coordinated runtime updates
+
+Feynman 0.3.49 pins the research runtime as a coordinated set: Pi 0.85.1, Alpha Hub 0.1.4, pi-subagents 0.65.1, pi-web-access 0.28.0, and LiteParse 2.14.3. Pi BTW 0.4.1, pi-docparser 4.0.0, and pi-otel 0.1.0 are retained. Upgrade the Feynman CLI to receive this set. `feynman update pi-subagents` repairs that package to the version shipped by the installed Feynman release; it does not select a newer runtime train. Manually replacing embedded dependencies outside Feynman's update path can bypass the maintained source and package checks.

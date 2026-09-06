@@ -54,12 +54,21 @@ const CURRENT_RELEASE_CORE_PACKAGE_SOURCES = [
 	"npm:pi-otel@0.1.0",
 ] as const;
 
-export const CORE_PACKAGE_SOURCES = [
+const BEFORE_LATEST_CORE_PACKAGE_SOURCES = [
 	"npm:@companion-ai/alpha-hub@0.1.3",
 	"npm:pi-subagents@0.40.0",
 	"npm:pi-btw@0.4.1",
 	"npm:pi-docparser@4.0.0",
 	"npm:pi-web-access@0.25.0",
+	"npm:pi-otel@0.1.0",
+] as const;
+
+export const CORE_PACKAGE_SOURCES = [
+	"npm:@advaitpaliwal/alpha-hub@0.1.4",
+	"npm:pi-subagents@0.65.1",
+	"npm:pi-btw@0.4.1",
+	"npm:pi-docparser@4.0.0",
+	"npm:pi-web-access@0.28.0",
 	"npm:pi-otel@0.1.0",
 ] as const;
 
@@ -177,6 +186,7 @@ function buildCorePackageUpdateAliases(): Record<string, string> {
 
 const CORE_PACKAGE_UPDATE_ALIASES = buildCorePackageUpdateAliases();
 const MANAGED_CORE_PACKAGE_SOURCES = new Set<string>([
+	...BEFORE_LATEST_CORE_PACKAGE_SOURCES,
 	...UNPINNED_CORE_PACKAGE_SOURCES,
 	...LEGACY_PREVIOUS_CORE_PACKAGE_SOURCES,
 	...PREVIOUS_CORE_PACKAGE_SOURCES,
@@ -236,6 +246,10 @@ export type OptionalPackagePresetName = keyof typeof OPTIONAL_PACKAGE_PRESETS;
 export type OptionalPackagePresetAlias = OptionalPackagePresetName;
 
 const LEGACY_DEFAULT_PACKAGE_SETS = [
+	[...BEFORE_LATEST_CORE_PACKAGE_SOURCES],
+	[...BEFORE_LATEST_CORE_PACKAGE_SOURCES, "npm:pi-generative-ui"],
+	[...BEFORE_LATEST_CORE_PACKAGE_SOURCES, "npm:@devkade/pi-opentelemetry"],
+	[...BEFORE_LATEST_CORE_PACKAGE_SOURCES, "npm:@devkade/pi-opentelemetry", "npm:pi-generative-ui"],
 	[
 		...UNPINNED_CORE_PACKAGE_SOURCES,
 	],

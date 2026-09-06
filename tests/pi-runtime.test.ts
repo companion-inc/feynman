@@ -585,17 +585,17 @@ test("package ships source modules required by source-loaded research extensions
 test("resolveBundledAlphaCliPath resolves hoisted package installs before bundled fallbacks", () => {
 	const root = mkdtempSync(join(tmpdir(), "feynman-alpha-cli-hoisted-"));
 	const appRoot = join(root, "node_modules", "@advaitpaliwal", "feynman");
-	const hoistedAlpha = join(root, "node_modules", "@companion-ai", "alpha-hub", "bin", "alpha");
+	const hoistedAlpha = join(root, "node_modules", "@advaitpaliwal", "alpha-hub", "bin", "alpha");
 
 	mkdirSync(join(appRoot), { recursive: true });
 	writeFileSync(join(appRoot, "package.json"), JSON.stringify({ name: "@advaitpaliwal/feynman" }));
 	mkdirSync(dirname(hoistedAlpha), { recursive: true });
-	mkdirSync(join(root, "node_modules", "@companion-ai", "alpha-hub", "src"), { recursive: true });
+	mkdirSync(join(root, "node_modules", "@advaitpaliwal", "alpha-hub", "src"), { recursive: true });
 	writeFileSync(
-		join(root, "node_modules", "@companion-ai", "alpha-hub", "package.json"),
-		JSON.stringify({ name: "@companion-ai/alpha-hub", type: "module", exports: { ".": "./src/index.js" } }),
+		join(root, "node_modules", "@advaitpaliwal", "alpha-hub", "package.json"),
+		JSON.stringify({ name: "@advaitpaliwal/alpha-hub", type: "module", exports: { ".": "./src/index.js" } }),
 	);
-	writeFileSync(join(root, "node_modules", "@companion-ai", "alpha-hub", "src", "index.js"), "", "utf8");
+	writeFileSync(join(root, "node_modules", "@advaitpaliwal", "alpha-hub", "src", "index.js"), "", "utf8");
 	writeFileSync(hoistedAlpha, "", "utf8");
 
 	assert.equal(resolveBundledAlphaCliPath(appRoot), realpathSync(hoistedAlpha));
@@ -603,14 +603,14 @@ test("resolveBundledAlphaCliPath resolves hoisted package installs before bundle
 
 test("resolveBundledAlphaCliPath prefers package-local alpha and falls back to the bundled workspace", () => {
 	const appRoot = mkdtempSync(join(tmpdir(), "feynman-alpha-cli-"));
-	const packageLocalAlpha = join(appRoot, "node_modules", "@companion-ai", "alpha-hub", "bin", "alpha");
-	const bundledAlpha = join(appRoot, ".feynman", "npm", "node_modules", "@companion-ai", "alpha-hub", "bin", "alpha");
+	const packageLocalAlpha = join(appRoot, "node_modules", "@advaitpaliwal", "alpha-hub", "bin", "alpha");
+	const bundledAlpha = join(appRoot, ".feynman", "npm", "node_modules", "@advaitpaliwal", "alpha-hub", "bin", "alpha");
 
-	mkdirSync(join(appRoot, ".feynman", "npm", "node_modules", "@companion-ai", "alpha-hub", "bin"), { recursive: true });
+	mkdirSync(join(appRoot, ".feynman", "npm", "node_modules", "@advaitpaliwal", "alpha-hub", "bin"), { recursive: true });
 	writeFileSync(bundledAlpha, "", "utf8");
 	assert.equal(resolveBundledAlphaCliPath(appRoot), bundledAlpha);
 
-	mkdirSync(join(appRoot, "node_modules", "@companion-ai", "alpha-hub", "bin"), { recursive: true });
+	mkdirSync(join(appRoot, "node_modules", "@advaitpaliwal", "alpha-hub", "bin"), { recursive: true });
 	writeFileSync(packageLocalAlpha, "", "utf8");
 	assert.equal(resolveBundledAlphaCliPath(appRoot), packageLocalAlpha);
 });

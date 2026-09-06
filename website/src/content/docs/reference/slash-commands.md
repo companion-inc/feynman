@@ -43,6 +43,24 @@ Session management commands help you organize ongoing work. The `/log` command i
 
 The `/feynman-model` command opens an interactive picker that lets you either change the main approved research model or assign a different approved model to a bundled subagent like `researcher`, `reviewer`, `writer`, or `verifier`.
 
+## Research delegation
+
+Use `/subagents` to inspect configured agents and `/run <agent> [task] [--bg] [--fork]` for one child. The current runtime does not provide `/chain` or `/parallel` commands.
+
+Research workflows call `subagent` directly for one child or use `workflowScript` for parallel or sequential work:
+
+```json
+{
+  "workflowScript": "return await runs.all([{key:'papers',agent:'researcher',task:'Read outputs/.plans/<slug>-papers.md.',output:'<slug>-research-papers.md'},{key:'web',agent:'researcher',task:'Read outputs/.plans/<slug>-web.md.',output:'<slug>-research-web.md'}]);",
+  "async": true,
+  "globalConcurrencyLimit": 4
+}
+```
+
+For sequential work, await `runs.run(key, {agent, task, output})` before starting the next step. Legacy top-level `tasks`, `chain`, `concurrency`, and `failFast` call fields are not supported. `runs.all` returns an ordered array, including ordinary child failures; inspect each result's `ok` and returned output references. Validation and infrastructure failures can still fail the workflow.
+
+Keep task briefs and provenance on disk. An async launch receipt is not completion: consume the result and verify child output paths before synthesis or dependent review. Ordinary background subagents notify their parent; `bg_wait` is for background work without native completion notification.
+
 ## Running workflows from the CLI
 
 All research workflow slash commands can also be run directly from the command line:
