@@ -382,3 +382,177 @@ test("NODE_PATH-only host is rejected even when Node's unrestricted compiler loo
 	`], { encoding: "utf8", env: { ...process.env, NODE_PATH: globalModules }, timeout: 15000 });
 	assert.equal(child.status, 0, child.stderr);
 });
+
+function runtimeRecoveryFixture(t: TestContext, empty = true) {
+	const f = fixture(t), runtime = join(f.app, ".feynman/npm");
+	const destination = join(f.modules, host), source = join(runtime, "node_modules", host);
+	assert.notEqual(source, destination);
+	mkdirSync(dirname(source), { recursive: true });
+	renameSync(destination, source);
+	if (empty) mkdirSync(destination);
+	write(join(runtime, "package.json"), { name: "feynman-runtime", private: true, dependencies: { esbuild: "0.28.2" } });
+	return { ...f, runtime, destination, source };
+}
+
+for (const empty of [true, false]) test(`global consumer repairs ${empty ? "empty" : "missing"} root slot from verified owned runtime`, (t) => {
+	const f = runtimeRecoveryFixture(t, empty);
+	const binary = assertEsbuildPlatformPackage(f.source);
+	const before = [join(f.source, "package.json"), binary].map(p => digest(readFileSync(p)));
+	const subpath = process.platform === "win32" ? "esbuild.exe" : "bin/esbuild";
+	assert.throws(() => createRequire(join(f.top, "lib/main.js")).resolve(`${host}/${subpath}`), /Cannot find module/);
+	assert.equal(patchPiEsbuildPackageTree(f.modules), true);
+	assertEsbuildPlatformPackage(f.destination);
+	assert.equal(patchPiEsbuildPackageTree(f.modules), false);
+	assert.deepEqual([join(f.source, "package.json"), binary].map(p => digest(readFileSync(p))), before);
+	const env = { ...process.env }; delete env.ESBUILD_BINARY_PATH;
+	const child = spawnSync(process.execPath, ["-e", `
+		const assert = require("node:assert/strict");
+		const e = require(${JSON.stringify(f.nested)});
+		assert.equal(e.version,"0.28.2");
+		assert.match(e.transformSync("let recovered: number = 42",{loader:"ts"}).code,/recovered = 42/);
+		e.stop();
+	`], { encoding: "utf8", env, timeout: 15000 });
+	assert.equal(child.status, 0, child.stderr);
+	const cli = spawnSync(process.execPath, [join(f.nested, "bin/esbuild"), "--version"], { encoding: "utf8", env, timeout: 15000 });
+	assert.equal(cli.status, 0, cli.stderr); assert.equal(cli.stdout.trim(), "0.28.2");
+});
+
+test("runtime recovery cannot conceal a nonempty partial, wrong manifest, linked root or corrupt source", (t) => {
+	for (const kind of ["partial", "wrong-version", "linked-root", "bad-source"] as const) {
+		const f = runtimeRecoveryFixture(t), shrink = readFileSync(join(f.pi, "npm-shrinkwrap.json"));
+		if (kind === "partial") write(join(f.destination, "bin/esbuild"), "partial data");
+		if (kind === "wrong-version") {
+			cpSync(f.source, f.destination, { recursive: true });
+			write(join(f.destination, "package.json"), { name: host, version: "0.28.1", os: [process.platform], cpu: [process.arch] });
+		}
+		if (kind === "linked-root") { rmSync(f.destination, { recursive: true }); symlinkSync(f.source, f.destination, "dir"); }
+		if (kind === "bad-source") writeFileSync(assertEsbuildPlatformPackage(f.source), "corrupt source");
+		assert.throws(() => patchPiEsbuildPackageTree(f.modules), /manifest|unreviewed|real directory|digest mismatch/);
+		assert.deepEqual(readFileSync(join(f.pi, "npm-shrinkwrap.json")), shrink);
+		if (kind === "bad-source") assert.deepEqual(readdirSync(f.destination), []);
+	}
+});
+
+test("runtime recovery is fully preflighted and cannot use a linked or foreign runtime", (t) => {
+	for (const kind of ["bad-runtime", "linked-runtime", "bad-shrinkwrap"] as const) {
+		const f = runtimeRecoveryFixture(t);
+		if (kind === "bad-runtime") write(join(f.runtime, "package.json"), { name: "not-feynman", private: true, dependencies: { esbuild: "0.28.2" } });
+		if (kind === "linked-runtime") {
+			const elsewhere = join(f.root, "outside-managed-app");
+			renameSync(f.runtime, elsewhere); symlinkSync(elsewhere, f.runtime, "dir");
+		}
+		if (kind === "bad-shrinkwrap") write(join(f.pi, "npm-shrinkwrap.json"), { name: "wrong", version: "0.85.1", packages: {} });
+		assert.throws(() => patchPiEsbuildPackageTree(f.modules), /unreviewed|escapes|real directory/);
+		assert.deepEqual(readdirSync(f.destination), []);
+	}
+});
+
+test("wrapper-local recovery shadows fail before changing the empty root or metadata", (t) => {
+	const f = runtimeRecoveryFixture(t), shadow = join(f.top, "node_modules", host);
+	cpSync(f.source, shadow, { recursive: true });
+	const metadata = [join(f.pi, "npm-shrinkwrap.json"), join(f.app, "package-lock.json"), join(f.top, "package.json")];
+	const before = metadata.map(p => digest(readFileSync(p)));
+	assert.throws(() => patchPiEsbuildPackageTree(f.modules), /compiler-local host shadow/);
+	assert.deepEqual(readdirSync(f.destination), []);
+	assert.deepEqual(metadata.map(p => digest(readFileSync(p))), before);
+});
+
+test("a final recovery resolver failure rolls back the empty slot and leaves metadata unchanged", (t) => {
+	const f = runtimeRecoveryFixture(t), helper = pathToFileURL(resolve("scripts/lib/pi-esbuild-package-patch.mjs")).href;
+	const before = readFileSync(join(f.pi, "npm-shrinkwrap.json"));
+	const request = `${host}/${process.platform === "win32" ? "esbuild.exe" : "bin/esbuild"}`;
+	const child = spawnSync(process.execPath, ["--input-type=module", "-e", `
+		import assert from "node:assert/strict";
+		import { Module } from "node:module";
+		import { existsSync, readdirSync, realpathSync } from "node:fs";
+		import { patchPiEsbuildPackageTree } from ${JSON.stringify(helper)};
+		const original = Module._resolveFilename;
+		let injectedRaces = 0;
+		Module._resolveFilename = function(request, parent, ...rest) {
+			if (request === ${JSON.stringify(request)} &&
+				parent?.filename && existsSync(parent.filename) &&
+				realpathSync(parent.filename) === realpathSync(${JSON.stringify(join(f.top, "lib/main.js"))}) &&
+				existsSync(${JSON.stringify(join(f.destination, "package.json"))})) {
+				injectedRaces++;
+				throw new Error("simulated final resolver race");
+			}
+			return original.call(this, request, parent, ...rest);
+		};
+		try {
+			assert.throws(() => patchPiEsbuildPackageTree(${JSON.stringify(f.modules)}), /simulated final resolver race/);
+		} finally { Module._resolveFilename = original; }
+		assert.equal(injectedRaces, 1, "final resolver race must actually be injected");
+		assert.deepEqual(readdirSync(${JSON.stringify(f.destination)}), []);
+	`], { encoding: "utf8", timeout: 15000 });
+	assert.equal(child.status, 0, child.stderr);
+	assert.deepEqual(readdirSync(f.destination), []);
+	assert.deepEqual(readFileSync(join(f.pi, "npm-shrinkwrap.json")), before);
+});
+
+test("recovery emits only reviewed identity metadata, never donor lifecycle or routing fields", (t) => {
+	const f = runtimeRecoveryFixture(t), path = join(f.source, "package.json");
+	const donor = JSON.parse(readFileSync(path, "utf8"));
+	const subpath = process.platform === "win32" ? "esbuild.exe" : "bin/esbuild";
+	Object.assign(donor, {
+		scripts: { postinstall: "DO_NOT_EXECUTE" }, exports: { [`./${subpath}`]: `./${subpath}` },
+		imports: { "#payload": "./payload.js" }, browser: "./browser.js", main: "./payload.js",
+		license: "unreviewed", engines: { node: "*" },
+	});
+	write(path, donor);
+	const before = readFileSync(path);
+	assert.equal(patchPiEsbuildPackageTree(f.modules), true);
+	const repaired = JSON.parse(readFileSync(join(f.destination, "package.json"), "utf8"));
+	const expected = ESBUILD_PLATFORM_LOCK_ENTRIES[host];
+	assert.deepEqual(repaired, {
+		name: host, version: "0.28.2", license: expected.license,
+		engines: expected.engines, os: expected.os, cpu: expected.cpu,
+	});
+	assert.deepEqual(readFileSync(path), before);
+	assertEsbuildPlatformPackage(f.destination);
+});
+
+test("a donor export redirect is rejected before recovery rather than copied", (t) => {
+	const f = runtimeRecoveryFixture(t), path = join(f.source, "package.json");
+	const donor = JSON.parse(readFileSync(path, "utf8"));
+	const subpath = process.platform === "win32" ? "esbuild.exe" : "bin/esbuild";
+	donor.exports = { [`./${subpath}`]: "./redirected.js" };
+	write(path, donor); write(join(f.source, "redirected.js"), "do not execute");
+	const before = readFileSync(join(f.pi, "npm-shrinkwrap.json"));
+	assert.throws(() => patchPiEsbuildPackageTree(f.modules), /recovery source resolves outside/);
+	assert.deepEqual(readdirSync(f.destination), []);
+	assert.deepEqual(readFileSync(join(f.pi, "npm-shrinkwrap.json")), before);
+});
+
+test("recovery reads the donor binary once and installs exactly the hashed snapshot", (t) => {
+	const f = runtimeRecoveryFixture(t), binary = assertEsbuildPlatformPackage(f.source);
+	const expectedDigest = digest(readFileSync(binary));
+	const helper = pathToFileURL(resolve("scripts/lib/pi-esbuild-package-patch.mjs")).href;
+	const subpath = process.platform === "win32" ? "esbuild.exe" : "bin/esbuild";
+	const child = spawnSync(process.execPath, ["--input-type=module", "-e", `
+		import assert from "node:assert/strict";
+		import fs from "node:fs";
+		import { createHash } from "node:crypto";
+		import { syncBuiltinESMExports } from "node:module";
+		const source = fs.realpathSync(${JSON.stringify(binary)});
+		const original = fs.readFileSync;
+		let donorReads = 0;
+		fs.readFileSync = function(path, ...args) {
+			const data = original.call(this, path, ...args);
+			if (typeof path === "string" && fs.realpathSync(path) === source) {
+				donorReads++;
+				fs.writeFileSync(source, "changed after verified read");
+			}
+			return data;
+		};
+		syncBuiltinESMExports();
+		try {
+			const { patchPiEsbuildPackageTree } = await import(${JSON.stringify(helper)});
+			assert.equal(patchPiEsbuildPackageTree(${JSON.stringify(f.modules)}), true);
+		} finally { fs.readFileSync = original; syncBuiltinESMExports(); }
+		assert.equal(donorReads, 1, "the hashed donor binary must not be reopened for copying");
+		const installed = fs.readFileSync(${JSON.stringify(join(f.destination, subpath))});
+		assert.equal(createHash("sha256").update(installed).digest("hex"), ${JSON.stringify(expectedDigest)});
+	`], { encoding: "utf8", timeout: 15000 });
+	assert.equal(child.status, 0, child.stderr);
+	assertEsbuildPlatformPackage(f.destination);
+});

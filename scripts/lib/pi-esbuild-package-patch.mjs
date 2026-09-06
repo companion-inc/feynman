@@ -215,6 +215,78 @@ function assertPlainDirectory(path) {
 	if (!s.isDirectory() || s.isSymbolicLink()) fail(`expected real directory: ${path}`);
 }
 
+function planRootHostRecovery(nodeModulesPath, hostName) {
+	const destination = resolve(nodeModulesPath, hostName);
+	try {
+		const stat = lstatSync(destination);
+		// npm 11 global cross-platform bundle extraction can leave this exact
+		// empty slot. Never replace a link, bad manifest or nonempty partial.
+		if (!stat.isDirectory() || stat.isSymbolicLink() || readdirSync(destination).length !== 0) return;
+	} catch (error) {
+		if (error.code !== "ENOENT") throw error;
+	}
+	for (const modules of [
+		resolve(nodeModulesPath, "esbuild", "lib", "node_modules"),
+		resolve(nodeModulesPath, "esbuild", "node_modules"),
+	]) {
+		try { lstatSync(resolve(modules, hostName)); fail("compiler-local host shadow prevents root recovery"); }
+		catch (error) { if (error.code !== "ENOENT") throw error; }
+	}
+	const subpathKey = Object.keys(ESBUILD_BINARY_HASHES).find(key => key.startsWith(hostName + "/"));
+	if (!subpathKey) fail("unknown recovery platform");
+	const subpath = subpathKey.slice(hostName.length + 1);
+	const compilerRequire = createRequire(resolve(nodeModulesPath, "esbuild", "lib", "main.js"));
+	try {
+		// Existing hoisting must follow the ordinary read-only resolver path.
+		compilerRequire.resolve(`${hostName}/${subpath}`);
+		return;
+	} catch (error) {
+		if (error.code !== "MODULE_NOT_FOUND") throw error;
+	}
+	const appRoot = dirname(nodeModulesPath), runtime = resolve(appRoot, ".feynman", "npm");
+	const source = resolve(runtime, "node_modules", hostName);
+	if (!existsSync(source)) return;
+	// Only this installation's owned runtime can supply recovery bytes. No
+	// ancestor package, NODE_PATH, cache search or download is a repair source.
+	for (const path of [
+		resolve(appRoot, ".feynman"), runtime, resolve(runtime, "node_modules"),
+		resolve(runtime, "node_modules", "@esbuild"), source,
+	]) { assertContained(path, appRoot); assertPlainDirectory(path); }
+	const runtimeManifest = resolve(runtime, "package.json");
+	if (!regularFile(runtimeManifest)) fail("missing or linked recovery runtime manifest");
+	const configured = json(runtimeManifest);
+	if (configured.name !== "feynman-runtime" || configured.private !== true ||
+		configured.dependencies?.esbuild !== FEYNMAN_ESBUILD_VERSION) fail("unreviewed recovery runtime identity");
+	const manifestPath = resolve(source, "package.json");
+	if (!regularFile(manifestPath)) fail("missing or linked recovery platform manifest");
+	const manifest = json(manifestPath), expected = PLATFORM_LOCKS[hostName];
+	if (!expected || manifest.name !== hostName || manifest.version !== FEYNMAN_ESBUILD_VERSION ||
+		JSON.stringify(manifest.os) !== JSON.stringify(expected.os) ||
+		JSON.stringify(manifest.cpu) !== JSON.stringify(expected.cpu)) fail("recovery platform identity mismatch");
+	const binary = resolve(source, subpath);
+	assertContained(binary, source);
+	if (dirname(binary) !== source) assertPlainDirectory(dirname(binary));
+	if (!regularFile(binary)) fail("missing or linked recovery platform binary");
+	// Hash and copy the same captured buffer. A donor changed after this read
+	// cannot substitute different bytes between verification and installation.
+	const binaryBytes = readFileSync(binary);
+	if (hash(binaryBytes) !== ESBUILD_BINARY_HASHES[subpathKey]) fail("recovery platform binary digest mismatch");
+	const runtimeRequire = createRequire(resolve(runtime, "node_modules", "esbuild", "lib", "main.js"));
+	if (realpathSync(runtimeRequire.resolve(`${hostName}/${subpath}`)) !== realpathSync(binary)) fail("recovery source resolves outside its verified package");
+	assertContained(destination, nodeModulesPath);
+	if (existsSync(dirname(destination))) assertPlainDirectory(dirname(destination));
+	// Donor package.json can contain unreviewed lifecycle/export metadata.
+	// Only immutable reviewed platform identity fields belong in the repair.
+	const canonicalManifest = Buffer.from(JSON.stringify({
+		name: hostName, version: FEYNMAN_ESBUILD_VERSION,
+		license: expected.license, engines: expected.engines,
+		os: expected.os, cpu: expected.cpu,
+	}, null, 2) + "\n");
+	return { destination, files: new Map([
+		["package.json", canonicalManifest], [subpath, binaryBytes],
+	]) };
+}
+
 function resolvePortableHost(nodeModulesPath, hostName, runtime) {
 	const localModules = realpathSync(nodeModulesPath);
 	const candidates = [];
@@ -296,7 +368,7 @@ function treeMatches(root, files) {
 	return found.every((name) => files.has(name) && readFileSync(resolve(root, name)).equals(files.get(name)));
 }
 
-function replacePortableTree(destination, files) {
+function replacePortableTree(destination, files, validateInstalled) {
 	mkdirSync(dirname(destination), { recursive: true });
 	const stage = mkdtempSync(resolve(dirname(destination), ".feynman-esbuild-stage-"));
 	const backup = stage + ".backup";
@@ -307,8 +379,15 @@ function replacePortableTree(destination, files) {
 			writeFileSync(path, data, { mode: (file === "bin/esbuild" || file === "esbuild.exe") ? 0o755 : 0o644 });
 		}
 		if (existsSync(destination)) { renameSync(destination, backup); moved = true; }
-		try { renameSync(stage, destination); }
-		catch (error) { if (moved) renameSync(backup, destination); throw error; }
+		let installed = false;
+		try {
+			renameSync(stage, destination); installed = true;
+			validateInstalled?.();
+		} catch (error) {
+			if (installed) rmSync(destination, { recursive: true, force: true });
+			if (moved) renameSync(backup, destination);
+			throw error;
+		}
 		if (moved) rmSync(backup, { recursive: true, force: true });
 	} finally { rmSync(stage, { recursive: true, force: true }); }
 }
@@ -330,7 +409,9 @@ export function patchPiEsbuildPackageTree(nodeModulesPath, sourcePackagePath = r
 	} else assertEsbuildRootManifest(manifestSource);
 	const hostName = `@esbuild/${options.platform ?? process.platform}-${options.arch ?? process.arch}`;
 	const files = portableFiles(sourcePackagePath, options.runtime === true);
-	const host = resolvePortableHost(nodeModulesPath, hostName, options.runtime === true);
+	const recovery = options.runtime === true ? undefined : planRootHostRecovery(nodeModulesPath, hostName);
+	const host = recovery ? { packageRoot: recovery.destination, local: true }
+		: resolvePortableHost(nodeModulesPath, hostName, options.runtime === true);
 	const targets = new Set([resolve(nodeModulesPath, "esbuild")]);
 	const metadata = new Map(), removals = new Set(), seenPi = new Set();
 	const chordRoots = new Set([resolve(nodeModulesPath, "@earendil-works", "chord")]);
@@ -392,6 +473,14 @@ export function patchPiEsbuildPackageTree(nodeModulesPath, sourcePackagePath = r
 	}
 	// Complete preflight above before changing any package or metadata.
 	let changed = false;
+	if (recovery) {
+		// Recovery is not acceptance of an empty directory: the same strict
+		// guards must pass on installed bytes before the empty-slot backup is
+		// discarded. A final resolver failure restores the original slot.
+		replacePortableTree(recovery.destination, recovery.files,
+			() => resolvePortableHost(nodeModulesPath, hostName, false));
+		changed = true;
+	}
 	for (const target of targets) if (!treeMatches(target, files)) { replacePortableTree(target, files); changed = true; }
 	for (const dir of removals) { rmSync(dir, { recursive: true }); changed = true; }
 	for (const [path, source] of metadata) if (readFileSync(path, "utf8") !== source) { writeFileSync(path, source); changed = true; }
