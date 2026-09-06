@@ -144,6 +144,8 @@ const RUNTIME_PACKAGE_OVERRIDES = {
 	"@llamaindex/liteparse": "2.14.0",
 	"brace-expansion": "5.0.9",
 	"ip-address": "10.5.0",
+	"fast-uri": "3.1.6",
+	qs: "6.16.0",
 	undici: "8.10.0",
 };
 const PINNED_RUNTIME_PACKAGES = [

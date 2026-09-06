@@ -58,7 +58,7 @@ async function fetchJson(url: URL, init?: RequestInit): Promise<unknown> {
 			...init,
 			headers: {
 				accept: "application/json",
-				"user-agent": "feynman-science-database-search/1.0 (https://github.com/companion-ai/feynman)",
+				"user-agent": "feynman-science-database-search/1.0 (https://github.com/advaitpaliwal/feynman)",
 				...(init?.headers ?? {}),
 			},
 			signal: controller.signal,
@@ -77,7 +77,7 @@ async function fetchText(url: URL): Promise<string> {
 		const response = await fetch(url, {
 			headers: {
 				accept: "text/plain,application/json",
-				"user-agent": "feynman-science-database-search/1.0 (https://github.com/companion-ai/feynman)",
+				"user-agent": "feynman-science-database-search/1.0 (https://github.com/advaitpaliwal/feynman)",
 			},
 			signal: controller.signal,
 		});
@@ -95,7 +95,7 @@ async function fetchOptionalJson(url: URL): Promise<unknown | undefined> {
 		const response = await fetch(url, {
 			headers: {
 				accept: "application/json",
-				"user-agent": "feynman-science-database-search/1.0 (https://github.com/companion-ai/feynman)",
+				"user-agent": "feynman-science-database-search/1.0 (https://github.com/advaitpaliwal/feynman)",
 			},
 			signal: controller.signal,
 		});

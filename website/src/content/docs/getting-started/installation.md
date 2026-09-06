@@ -32,10 +32,21 @@ This installs the Windows x64 runtime bundle under `%LOCALAPPDATA%\Programs\feyn
 If you prefer installing Feynman into an existing Node.js environment, use npm instead:
 
 ```bash
-npm install -g @companion-ai/feynman
+npm install -g @advaitpaliwal/feynman
 ```
 
 This path uses your local Node.js runtime instead of the bundled standalone runtime. It requires a compatible Node.js version that satisfies Feynman's current engine range: `>=22.22.0 <26`.
+
+### Migrating from the old npm scope
+
+If you installed `@companion-ai/feynman`, remove it before installing the new canonical package:
+
+```bash
+npm uninstall -g @companion-ai/feynman
+npm install -g @advaitpaliwal/feynman
+```
+
+The command remains `feynman`. Native install commands are unchanged; standalone users can continue to rerun the one-line installer above.
 
 ## Updating the standalone app
 
@@ -46,7 +57,7 @@ To update the standalone Feynman app on macOS, Linux, or Windows, rerun the inst
 If you installed Feynman with npm, upgrade it with:
 
 ```bash
-npm install -g @companion-ai/feynman@latest
+npm install -g @advaitpaliwal/feynman@latest
 ```
 
 ## Uninstalling
@@ -56,7 +67,7 @@ Feynman does not currently ship a dedicated `uninstall` command. Remove the stan
 If you installed Feynman with npm, uninstall it with:
 
 ```bash
-npm uninstall -g @companion-ai/feynman
+npm uninstall -g @advaitpaliwal/feynman
 ```
 
 On macOS or Linux:

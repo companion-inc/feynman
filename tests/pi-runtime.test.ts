@@ -584,11 +584,11 @@ test("package ships source modules required by source-loaded research extensions
 
 test("resolveBundledAlphaCliPath resolves hoisted package installs before bundled fallbacks", () => {
 	const root = mkdtempSync(join(tmpdir(), "feynman-alpha-cli-hoisted-"));
-	const appRoot = join(root, "node_modules", "@companion-ai", "feynman");
+	const appRoot = join(root, "node_modules", "@advaitpaliwal", "feynman");
 	const hoistedAlpha = join(root, "node_modules", "@companion-ai", "alpha-hub", "bin", "alpha");
 
 	mkdirSync(join(appRoot), { recursive: true });
-	writeFileSync(join(appRoot, "package.json"), JSON.stringify({ name: "@companion-ai/feynman" }));
+	writeFileSync(join(appRoot, "package.json"), JSON.stringify({ name: "@advaitpaliwal/feynman" }));
 	mkdirSync(dirname(hoistedAlpha), { recursive: true });
 	mkdirSync(join(root, "node_modules", "@companion-ai", "alpha-hub", "src"), { recursive: true });
 	writeFileSync(

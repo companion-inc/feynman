@@ -165,7 +165,7 @@ async function fetchJson(url: URL): Promise<Record<string, unknown>> {
 	const response = await fetchWithRetry(url, {
 		headers: {
 			accept: "application/json",
-			"user-agent": "feynman-science-database-search/1.0 (https://github.com/companion-ai/feynman)",
+			"user-agent": "feynman-science-database-search/1.0 (https://github.com/advaitpaliwal/feynman)",
 		},
 	});
 	if (!response.ok) throw new Error(`Europe PMC request failed: ${response.status} ${response.statusText}`);
@@ -176,7 +176,7 @@ async function fetchText(url: URL): Promise<{ status: number; text?: string }> {
 	const response = await fetchWithRetry(url, {
 		headers: {
 			accept: "application/xml,text/xml,*/*",
-			"user-agent": "feynman-science-database-search/1.0 (https://github.com/companion-ai/feynman)",
+			"user-agent": "feynman-science-database-search/1.0 (https://github.com/advaitpaliwal/feynman)",
 		},
 	});
 	if (response.status === 404) return { status: 404 };

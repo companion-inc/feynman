@@ -59,7 +59,7 @@ async function fetchJson(url: URL): Promise<unknown> {
 		const response = await fetch(url, {
 			headers: {
 				accept: "application/json",
-				"user-agent": "feynman-science-database-search/1.0 (https://github.com/companion-ai/feynman)",
+				"user-agent": "feynman-science-database-search/1.0 (https://github.com/advaitpaliwal/feynman)",
 			},
 			signal: controller.signal,
 		});
@@ -79,7 +79,7 @@ async function postJson(url: URL, body: Record<string, unknown>): Promise<unknow
 			headers: {
 				accept: "application/json",
 				"content-type": "application/json",
-				"user-agent": "feynman-science-database-search/1.0 (https://github.com/companion-ai/feynman)",
+				"user-agent": "feynman-science-database-search/1.0 (https://github.com/advaitpaliwal/feynman)",
 			},
 			method: "POST",
 			signal: controller.signal,

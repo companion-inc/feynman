@@ -4,10 +4,10 @@ Feynman is a research-first CLI built on Pi and alphaXiv. This guide is for huma
 
 ## Quick Links
 
-- GitHub: https://github.com/companion-inc/feynman
+- GitHub: https://github.com/advaitpaliwal/feynman
 - Docs: https://feynman.is/docs
 - Repo agent contract: [AGENTS.md](AGENTS.md)
-- Issues: https://github.com/companion-inc/feynman/issues
+- Issues: https://github.com/advaitpaliwal/feynman/issues
 
 ## What Goes Where
 

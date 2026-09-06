@@ -81,10 +81,10 @@ test("pi-web-access 0.25 renders bounded GitHub PR research documents", async ()
 	};
 	assert.deepEqual(
 		github.parseGitHubIssuePrUrl(
-			"https://github.com/companion-inc/feynman/pull/259#discussion_r123",
+			"https://github.com/advaitpaliwal/feynman/pull/259#discussion_r123",
 		),
 		{
-			owner: "companion-inc",
+			owner: "advaitpaliwal",
 			repo: "feynman",
 			kind: "pull",
 			number: 259,
@@ -92,8 +92,8 @@ test("pi-web-access 0.25 renders bounded GitHub PR research documents", async ()
 		},
 	);
 	const rendered = github.renderGitHubPrIssue({
-		url: "https://github.com/companion-inc/feynman/pull/259",
-		owner: "companion-inc",
+		url: "https://github.com/advaitpaliwal/feynman/pull/259",
+		owner: "advaitpaliwal",
 		repo: "feynman",
 		kind: "pull",
 		number: 259,
@@ -104,7 +104,7 @@ test("pi-web-access 0.25 renders bounded GitHub PR research documents", async ()
 			author: { login: "maintainer" },
 			baseRefName: "main",
 			headRefName: "runtime-timeouts",
-			headRepositoryOwner: { login: "companion-inc" },
+			headRepositoryOwner: { login: "advaitpaliwal" },
 			additions: 10,
 			deletions: 2,
 			changedFiles: 3,

@@ -43,7 +43,7 @@ jobs:
 
           PUBLISHED_SOURCE_SHA=""
           npm_error="$RUNNER_TEMP/npm-view-version.err"
-          if PUBLISHED=$(npm view "@companion-ai/feynman@$LOCAL" version 2>"$npm_error"); then
+          if PUBLISHED=$(npm view "@advaitpaliwal/feynman@$LOCAL" version 2>"$npm_error"); then
             :
           elif grep -q 'E404' "$npm_error"; then
             PUBLISHED=""
@@ -56,18 +56,18 @@ jobs:
             exit 1
           fi
           if [ "$PUBLISHED" = "$LOCAL" ]; then
-            published_integrity=$(npm view "@companion-ai/feynman@$LOCAL" dist.integrity)
+            published_integrity=$(npm view "@advaitpaliwal/feynman@$LOCAL" dist.integrity)
             provenance_dir="$RUNNER_TEMP/npm-provenance-version-check"
             mkdir -p "$provenance_dir"
             (
               cd "$provenance_dir"
               npm init -y >/dev/null
-              npm install --ignore-scripts --omit=dev --no-audit "@companion-ai/feynman@$LOCAL" >/dev/null
+              npm install --ignore-scripts --omit=dev --no-audit "@advaitpaliwal/feynman@$LOCAL" >/dev/null
               npx --yes npm@11.18.0 audit signatures --json --include-attestations > audit-signatures.json
             )
             PUBLISHED_SOURCE_SHA=$(node scripts/verify-npm-provenance.mjs \
               "$provenance_dir/audit-signatures.json" \
-              "@companion-ai/feynman" \
+              "@advaitpaliwal/feynman" \
               "$LOCAL" \
               "$published_integrity" \
               "https://github.com/$GITHUB_REPOSITORY" \
@@ -76,7 +76,7 @@ jobs:
             echo "should_publish_npm=false" >> "$GITHUB_OUTPUT"
           else
             latest_error="$RUNNER_TEMP/npm-view-latest.err"
-            if LATEST=$(npm view "@companion-ai/feynman@latest" version 2>"$latest_error"); then
+            if LATEST=$(npm view "@advaitpaliwal/feynman@latest" version 2>"$latest_error"); then
               LOCAL="$LOCAL" LATEST="$LATEST" node <<'NODE'
           const parse = (value) => {
             const match = /^(\d+)\.(\d+)\.(\d+)(?:-[0-9A-Za-z.-]+)?$/.exec(value);
@@ -232,14 +232,14 @@ jobs:
           )
           git diff --check
 
-          tarball="$RUNNER_TEMP/companion-ai-feynman-$VERSION.tgz"
+          tarball="$RUNNER_TEMP/advaitpaliwal-feynman-$VERSION.tgz"
           if [ "$SHOULD_PUBLISH_NPM" = "true" ]; then
             npm pack --dry-run --json > "$RUNNER_TEMP/pack-dry-run.json"
             npm pack --json --pack-destination "$RUNNER_TEMP" > "$RUNNER_TEMP/pack.json"
             node scripts/verify-package-budget.mjs "$RUNNER_TEMP/pack.json" "$tarball"
           else
             npm_tarball_error="$RUNNER_TEMP/npm-view-tarball.err"
-            if ! npm_tarball_url=$(npm view "@companion-ai/feynman@$VERSION" dist.tarball 2>"$npm_tarball_error"); then
+            if ! npm_tarball_url=$(npm view "@advaitpaliwal/feynman@$VERSION" dist.tarball 2>"$npm_tarball_error"); then
               cat "$npm_tarball_error" >&2
               exit 1
             fi
@@ -252,7 +252,7 @@ jobs:
           integrity=$(TARBALL="$tarball" node -e \
             'const { createHash } = require("node:crypto"); const { readFileSync } = require("node:fs"); process.stdout.write("sha512-" + createHash("sha512").update(readFileSync(process.env.TARBALL)).digest("base64"))')
           if [ "$SHOULD_PUBLISH_NPM" = "false" ]; then
-            published_integrity=$(npm view "@companion-ai/feynman@$VERSION" dist.integrity)
+            published_integrity=$(npm view "@advaitpaliwal/feynman@$VERSION" dist.integrity)
             test -n "$published_integrity"
             test "$integrity" = "$published_integrity"
           fi
@@ -275,7 +275,7 @@ jobs:
           node scripts/verify-stale-pi-upgrade.mjs "$bin"
           runtime_audit="$RUNNER_TEMP/feynman-runtime-audit"
           mkdir -p "$runtime_audit"
-          runtime_archive="$consumer/node_modules/@companion-ai/feynman/.feynman/runtime-workspace.tgz"
+          runtime_archive="$consumer/node_modules/@advaitpaliwal/feynman/.feynman/runtime-workspace.tgz"
           if command -v cygpath >/dev/null 2>&1; then
             runtime_archive=$(cygpath -u "$runtime_archive")
             runtime_audit=$(cygpath -u "$runtime_audit")
@@ -284,10 +284,10 @@ jobs:
             "$runtime_archive" \
             -C "$runtime_audit"
           npm audit --omit=dev --prefix "$runtime_audit/npm"
-          node "$consumer/node_modules/@companion-ai/feynman/scripts/verify-package-artifact.mjs" \
-            "$consumer/node_modules/@companion-ai/feynman"
-          node "$consumer/node_modules/@companion-ai/feynman/scripts/verify-installed-runtime.mjs" "$bin"
-          node "$consumer/node_modules/@companion-ai/feynman/scripts/verify-installed-docparser.mjs"
+          node "$consumer/node_modules/@advaitpaliwal/feynman/scripts/verify-package-artifact.mjs" \
+            "$consumer/node_modules/@advaitpaliwal/feynman"
+          node "$consumer/node_modules/@advaitpaliwal/feynman/scripts/verify-installed-runtime.mjs" "$bin"
+          node "$consumer/node_modules/@advaitpaliwal/feynman/scripts/verify-installed-docparser.mjs"
           test -z "$(git status --porcelain --untracked-files=all)"
 
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
@@ -363,7 +363,7 @@ jobs:
           "$global_bin" --help >/dev/null
           runtime_audit="$RUNNER_TEMP/feynman-runtime-audit"
           mkdir -p "$runtime_audit"
-          runtime_archive="$consumer/node_modules/@companion-ai/feynman/.feynman/runtime-workspace.tgz"
+          runtime_archive="$consumer/node_modules/@advaitpaliwal/feynman/.feynman/runtime-workspace.tgz"
           if command -v cygpath >/dev/null 2>&1; then
             runtime_archive=$(cygpath -u "$runtime_archive")
             runtime_audit=$(cygpath -u "$runtime_audit")
@@ -372,16 +372,16 @@ jobs:
             "$runtime_archive" \
             -C "$runtime_audit"
           npm audit --omit=dev --prefix "$runtime_audit/npm"
-          node "$consumer/node_modules/@companion-ai/feynman/scripts/verify-package-artifact.mjs" \
-            "$consumer/node_modules/@companion-ai/feynman"
-          node "$consumer/node_modules/@companion-ai/feynman/scripts/verify-installed-runtime.mjs" "$bin"
-          node "$consumer/node_modules/@companion-ai/feynman/scripts/verify-installed-docparser.mjs"
+          node "$consumer/node_modules/@advaitpaliwal/feynman/scripts/verify-package-artifact.mjs" \
+            "$consumer/node_modules/@advaitpaliwal/feynman"
+          node "$consumer/node_modules/@advaitpaliwal/feynman/scripts/verify-installed-runtime.mjs" "$bin"
+          node "$consumer/node_modules/@advaitpaliwal/feynman/scripts/verify-installed-docparser.mjs"
           global_node_modules=$(npm root --global --prefix "$global_prefix")
           if command -v cygpath >/dev/null 2>&1; then
             global_node_modules=$(cygpath -u "$global_node_modules")
           fi
-          node "$global_node_modules/@companion-ai/feynman/scripts/verify-installed-runtime.mjs" "$global_bin"
-          node "$global_node_modules/@companion-ai/feynman/scripts/verify-installed-docparser.mjs"
+          node "$global_node_modules/@advaitpaliwal/feynman/scripts/verify-installed-runtime.mjs" "$global_bin"
+          node "$global_node_modules/@advaitpaliwal/feynman/scripts/verify-installed-docparser.mjs"
 
   publish-npm:
     needs:
@@ -422,7 +422,7 @@ jobs:
             'let source=""; process.stdin.on("data", chunk => source += chunk).on("end", () => process.stdout.write(JSON.parse(source).version))')
           test "$LOCAL" = "${{ needs.version-check.outputs.version }}"
           npm_error="$RUNNER_TEMP/npm-view-before-publish.err"
-          if PUBLISHED=$(npm view "@companion-ai/feynman@$LOCAL" version 2>"$npm_error"); then
+          if PUBLISHED=$(npm view "@advaitpaliwal/feynman@$LOCAL" version 2>"$npm_error"); then
             :
           elif grep -q 'E404' "$npm_error"; then
             PUBLISHED=""
@@ -431,18 +431,18 @@ jobs:
             exit 1
           fi
           if [ "$PUBLISHED" = "$LOCAL" ]; then
-            published_integrity=$(npm view "@companion-ai/feynman@$LOCAL" dist.integrity)
+            published_integrity=$(npm view "@advaitpaliwal/feynman@$LOCAL" dist.integrity)
             provenance_dir="$RUNNER_TEMP/npm-provenance-publish"
             mkdir -p "$provenance_dir"
             (
               cd "$provenance_dir"
               npm init -y >/dev/null
-              npm install --ignore-scripts --omit=dev --no-audit "@companion-ai/feynman@$LOCAL" >/dev/null
+              npm install --ignore-scripts --omit=dev --no-audit "@advaitpaliwal/feynman@$LOCAL" >/dev/null
               npx --yes npm@11.18.0 audit signatures --json --include-attestations > audit-signatures.json
             )
             published_source_sha=$(node scripts/verify-npm-provenance.mjs \
               "$provenance_dir/audit-signatures.json" \
-              "@companion-ai/feynman" \
+              "@advaitpaliwal/feynman" \
               "$LOCAL" \
               "$published_integrity" \
               "https://github.com/$GITHUB_REPOSITORY" \
@@ -450,7 +450,7 @@ jobs:
               "refs/heads/main")
             test "$published_source_sha" = "$GITHUB_SHA"
             test "$published_integrity" = "${{ needs.verify.outputs.package_integrity }}"
-            echo "@companion-ai/feynman@$LOCAL already matches this verified commit and tarball; skipping npm publish."
+            echo "@advaitpaliwal/feynman@$LOCAL already matches this verified commit and tarball; skipping npm publish."
             exit 0
           fi
           npx npm@11.18.0 publish "$tarball" --access public --provenance
@@ -694,9 +694,9 @@ jobs:
 
           npm_visibility_error="$RUNNER_TEMP/npm-view-published.err"
           for attempt in $(seq 1 18); do
-            if published_version=$(npm view "@companion-ai/feynman@$VERSION" version 2>"$npm_visibility_error"); then
+            if published_version=$(npm view "@advaitpaliwal/feynman@$VERSION" version 2>"$npm_visibility_error"); then
               if [ "$published_version" != "$VERSION" ]; then
-                echo "npm returned version $published_version for @companion-ai/feynman@$VERSION" >&2
+                echo "npm returned version $published_version for @advaitpaliwal/feynman@$VERSION" >&2
                 exit 1
               fi
               break
@@ -707,13 +707,13 @@ jobs:
             fi
             if [ "$attempt" -eq 18 ]; then
               cat "$npm_visibility_error" >&2
-              echo "npm package did not become visible: @companion-ai/feynman@$VERSION" >&2
+              echo "npm package did not become visible: @advaitpaliwal/feynman@$VERSION" >&2
               exit 1
             fi
             sleep 10
           done
 
-          published_integrity=$(npm view "@companion-ai/feynman@$VERSION" dist.integrity)
+          published_integrity=$(npm view "@advaitpaliwal/feynman@$VERSION" dist.integrity)
           test "$published_integrity" = "${{ needs.verify.outputs.package_integrity }}"
 
           consumer="$RUNNER_TEMP/published-consumer"
@@ -722,7 +722,7 @@ jobs:
           npm_install_error="$RUNNER_TEMP/npm-install-published.err"
           for attempt in $(seq 1 18); do
             if npm install --prefix "$consumer" --omit=dev --no-audit \
-              "@companion-ai/feynman@$VERSION" 2>"$npm_install_error"
+              "@advaitpaliwal/feynman@$VERSION" 2>"$npm_install_error"
             then
               break
             fi
@@ -732,7 +732,7 @@ jobs:
             fi
             if [ "$attempt" -eq 18 ]; then
               cat "$npm_install_error" >&2
-              echo "npm tarball did not become installable: @companion-ai/feynman@$VERSION" >&2
+              echo "npm tarball did not become installable: @advaitpaliwal/feynman@$VERSION" >&2
               exit 1
             fi
             rm -rf "$consumer/node_modules" "$consumer/package-lock.json"
@@ -744,7 +744,7 @@ jobs:
           )
           published_source_sha=$(node scripts/verify-npm-provenance.mjs \
             "$consumer/audit-signatures.json" \
-            "@companion-ai/feynman" \
+            "@advaitpaliwal/feynman" \
             "$VERSION" \
             "$published_integrity" \
             "https://github.com/$GITHUB_REPOSITORY" \
@@ -755,19 +755,19 @@ jobs:
           bin="$consumer/node_modules/.bin/feynman"
           test "$("$bin" --version | tail -1)" = "$VERSION"
           "$bin" --help >/dev/null
-          node "$consumer/node_modules/@companion-ai/feynman/scripts/verify-package-artifact.mjs" \
-            "$consumer/node_modules/@companion-ai/feynman"
-          node "$consumer/node_modules/@companion-ai/feynman/scripts/verify-installed-runtime.mjs" "$bin"
-          node "$consumer/node_modules/@companion-ai/feynman/scripts/verify-installed-docparser.mjs"
+          node "$consumer/node_modules/@advaitpaliwal/feynman/scripts/verify-package-artifact.mjs" \
+            "$consumer/node_modules/@advaitpaliwal/feynman"
+          node "$consumer/node_modules/@advaitpaliwal/feynman/scripts/verify-installed-runtime.mjs" "$bin"
+          node "$consumer/node_modules/@advaitpaliwal/feynman/scripts/verify-installed-docparser.mjs"
           global_prefix="$RUNNER_TEMP/published-global"
           npm install --global --prefix "$global_prefix" --omit=dev --no-audit \
-            "@companion-ai/feynman@$VERSION"
+            "@advaitpaliwal/feynman@$VERSION"
           global_bin="$global_prefix/bin/feynman"
           test "$("$global_bin" --version | tail -1)" = "$VERSION"
           "$global_bin" --help >/dev/null
           global_node_modules=$(npm root --global --prefix "$global_prefix")
-          node "$global_node_modules/@companion-ai/feynman/scripts/verify-installed-runtime.mjs" "$global_bin"
-          node "$global_node_modules/@companion-ai/feynman/scripts/verify-installed-docparser.mjs"
+          node "$global_node_modules/@advaitpaliwal/feynman/scripts/verify-installed-runtime.mjs" "$global_bin"
+          node "$global_node_modules/@advaitpaliwal/feynman/scripts/verify-installed-docparser.mjs"
 
           release_dir="$RUNNER_TEMP/published-release"
           mkdir -p "$release_dir"

@@ -55,7 +55,7 @@ test("PR and publish workflows require clean package and consumer audits", () =>
 		assert.match(workflow, /npm audit --omit=dev --prefix "\$runtime_audit\/npm"/);
 		assert.doesNotMatch(
 			workflow,
-			/npm audit --omit=dev --prefix\s+\\?\s*"\$consumer\/node_modules\/@companion-ai\/feynman\/\.feynman\/npm"/,
+			/npm audit --omit=dev --prefix\s+\\?\s*"\$consumer\/node_modules\/@advaitpaliwal\/feynman\/\.feynman\/npm"/,
 		);
 		assert.match(workflow, /npm pack --dry-run --json/);
 		assert.match(workflow, /verify-package-artifact\.mjs/);
@@ -89,7 +89,7 @@ test("installed package gates verify Feynman commands, tools, and TypeBox schema
 		assert.match(workflow, /bin="\$consumer\/node_modules\/\.bin\/feynman\.cmd"/);
 		assert.match(
 			workflow,
-			/global_node_modules\/@companion-ai\/feynman\/scripts\/verify-installed-runtime\.mjs" "\$global_bin"/,
+			/global_node_modules\/@advaitpaliwal\/feynman\/scripts\/verify-installed-runtime\.mjs" "\$global_bin"/,
 		);
 		assert.match(workflow, /global_node_modules=\$\(npm root --global --prefix "\$global_prefix"\)/);
 	}
@@ -154,7 +154,7 @@ test("package gates exercise the global npm install path", () => {
 		assert.match(workflow, /"\$global_bin" --help >\/dev\/null/);
 	}
 	assert.match(publishWorkflow, /global_prefix="\$RUNNER_TEMP\/published-global"/);
-	assert.match(publishWorkflow, /"@companion-ai\/feynman@\$VERSION"/);
+	assert.match(publishWorkflow, /"@advaitpaliwal\/feynman@\$VERSION"/);
 });
 
 test("package consumer matrices allow two slow Windows package installs", () => {
@@ -221,7 +221,7 @@ test("publish uses the exact verified tarball after native bundles pass", () => 
 	assert.ok(consumerJob, "publish workflow must define the package consumer job");
 	assert.match(
 		consumerJob[0],
-		/runtime_archive="\$consumer\/node_modules\/@companion-ai\/feynman\/\.feynman\/runtime-workspace\.tgz"/,
+		/runtime_archive="\$consumer\/node_modules\/@advaitpaliwal\/feynman\/\.feynman\/runtime-workspace\.tgz"/,
 	);
 	assert.match(consumerJob[0], /runtime_archive=\$\(cygpath -u "\$runtime_archive"\)/);
 	assert.match(consumerJob[0], /runtime_audit=\$\(cygpath -u "\$runtime_audit"\)/);
@@ -282,7 +282,7 @@ test("version reconciliation and post-publish verification cover all release sur
 	assert.match(publishWorkflow, /gh release download "v\$VERSION"/);
 	assert.match(
 		publishWorkflow,
-		/npm install --prefix "\$consumer" --omit=dev --no-audit \\\s+"@companion-ai\/feynman@\$VERSION"/,
+		/npm install --prefix "\$consumer" --omit=dev --no-audit \\\s+"@advaitpaliwal\/feynman@\$VERSION"/,
 	);
 	assert.match(verifyPublishedJob[0], /npm_install_error="\$RUNNER_TEMP\/npm-install-published\.err"/);
 	assert.match(verifyPublishedJob[0], /if ! grep -q 'E404' "\$npm_install_error"/);
@@ -303,7 +303,7 @@ test("version reconciliation and post-publish verification cover all release sur
 	assert.doesNotMatch(publishWorkflow, /npm view .* gitHead/);
 	assert.doesNotMatch(
 		publishWorkflow,
-		/npm view "@companion-ai\/feynman@\$VERSION" version 2>\/dev\/null \|\| true/,
+		/npm view "@advaitpaliwal\/feynman@\$VERSION" version 2>\/dev\/null \|\| true/,
 	);
 	assert.match(publishWorkflow, /node-version-file: \.nvmrc/);
 	assert.match(publishWorkflow, /npx npm@11\.18\.0 publish/);
