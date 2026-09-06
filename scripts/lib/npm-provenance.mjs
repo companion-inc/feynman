@@ -222,6 +222,26 @@ function githubRepositorySlug(repository) {
 	return match[1];
 }
 
+function githubOidcSubject(repository, ref, repositoryOwnerId, repositoryId) {
+	const slug = githubRepositorySlug(repository);
+	if (repositoryOwnerId === undefined && repositoryId === undefined) {
+		return `repo:${slug}:ref:${ref}`;
+	}
+	for (const [key, value] of Object.entries({ repositoryOwnerId, repositoryId })) {
+		if (
+			typeof value !== "string" ||
+			value !== value.trim() ||
+			!/^[1-9][0-9]*$/.test(value)
+		) {
+			fail(`${key} must be a positive decimal string; supply both repository IDs or neither`);
+		}
+	}
+	const [owner, name] = slug.split("/");
+	// IDs come only from the caller's trusted expectations, never the attestation.
+	// Explicit immutable expectations must not fall back to a name-only subject.
+	return `repo:${owner}@${repositoryOwnerId}/${name}@${repositoryId}:ref:${ref}`;
+}
+
 function assertGitHubCertificateIdentity(bundle, expected) {
 	const encodedCertificate =
 		bundle?.bundle?.verificationMaterial?.certificate?.rawBytes;
@@ -245,7 +265,6 @@ function assertGitHubCertificateIdentity(bundle, expected) {
 		);
 	}
 
-	const repositorySlug = githubRepositorySlug(expected.repository);
 	const extensions = readCertificateExtensions(certificateBytes);
 	requireCertificateExtension(
 		extensions,
@@ -280,7 +299,7 @@ function assertGitHubCertificateIdentity(bundle, expected) {
 	requireCertificateExtension(
 		extensions,
 		GITHUB_CERTIFICATE_OIDS.subjectV2,
-		`repo:${repositorySlug}:ref:${expected.ref}`,
+		expected.oidcSubject,
 	);
 }
 
@@ -293,10 +312,13 @@ export function resolveVerifiedNpmSourceCommit(audit, expected) {
 		workflowPath,
 		ref = "refs/heads/main",
 		registry = "https://registry.npmjs.org/",
+		repositoryOwnerId,
+		repositoryId,
 	} = expected;
 	if (!name || !version || !integrity || !repository || !workflowPath) {
 		fail("name, version, integrity, repository, and workflowPath are required");
 	}
+	const oidcSubject = githubOidcSubject(repository, ref, repositoryOwnerId, repositoryId);
 
 	const invalid = Array.isArray(audit?.invalid) ? audit.invalid : [];
 	const missing = Array.isArray(audit?.missing) ? audit.missing : [];
@@ -368,6 +390,7 @@ export function resolveVerifiedNpmSourceCommit(audit, expected) {
 			ref,
 			commit,
 			invocationId,
+			oidcSubject,
 		});
 		commits.add(commit);
 	}

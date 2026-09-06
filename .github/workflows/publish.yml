@@ -22,6 +22,9 @@ jobs:
       should_publish_npm: ${{ steps.version.outputs.should_publish_npm }}
       should_release_github: ${{ steps.version.outputs.should_release_github }}
       should_run_verify: ${{ steps.version.outputs.should_run_verify }}
+      should_verify_published: ${{ steps.version.outputs.should_verify_published }}
+      published_source_sha: ${{ steps.version.outputs.published_source_sha }}
+      published_integrity: ${{ steps.version.outputs.published_integrity }}
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
       - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
@@ -42,6 +45,7 @@ jobs:
           echo "version=$LOCAL" >> "$GITHUB_OUTPUT"
 
           PUBLISHED_SOURCE_SHA=""
+          published_integrity=""
           npm_error="$RUNNER_TEMP/npm-view-version.err"
           if PUBLISHED=$(npm view "@advaitpaliwal/feynman@$LOCAL" version 2>"$npm_error"); then
             :
@@ -72,7 +76,9 @@ jobs:
               "$published_integrity" \
               "https://github.com/$GITHUB_REPOSITORY" \
               ".github/workflows/publish.yml" \
-              "refs/heads/main")
+              "refs/heads/main" \
+              '${{ github.repository_owner_id }}' \
+              '${{ github.repository_id }}')
             echo "should_publish_npm=false" >> "$GITHUB_OUTPUT"
           else
             latest_error="$RUNNER_TEMP/npm-view-latest.err"
@@ -150,6 +156,10 @@ jobs:
               echo "npm version $LOCAL provenance belongs to $PUBLISHED_SOURCE_SHA, but GitHub release v$LOCAL targets $RELEASE_TARGET" >&2
               exit 1
             fi
+            release_tag_sha=$(gh api \
+              "repos/$GITHUB_REPOSITORY/commits/refs/tags/v$LOCAL" \
+              --jq .sha)
+            test "$release_tag_sha" = "$PUBLISHED_SOURCE_SHA"
             release_relation=$(gh api \
               "repos/$GITHUB_REPOSITORY/compare/$RELEASE_TARGET...$GITHUB_SHA" \
               --jq .status)
@@ -193,6 +203,12 @@ jobs:
           else
             echo "should_run_verify=true" >> "$GITHUB_OUTPUT"
           fi
+          # Nonempty only for an npm-verified source that passed the release gates.
+          {
+            echo "published_source_sha=$PUBLISHED_SOURCE_SHA"
+            echo "published_integrity=$published_integrity"
+            echo "should_verify_published=true"
+          } >> "$GITHUB_OUTPUT"
 
   verify:
     needs: version-check
@@ -447,7 +463,9 @@ jobs:
               "$published_integrity" \
               "https://github.com/$GITHUB_REPOSITORY" \
               ".github/workflows/publish.yml" \
-              "refs/heads/main")
+              "refs/heads/main" \
+              '${{ github.repository_owner_id }}' \
+              '${{ github.repository_id }}')
             test "$published_source_sha" = "$GITHUB_SHA"
             test "$published_integrity" = "${{ needs.verify.outputs.package_integrity }}"
             echo "@advaitpaliwal/feynman@$LOCAL already matches this verified commit and tarball; skipping npm publish."
@@ -665,7 +683,12 @@ jobs:
       - release-github
     if: >-
       always() &&
-      needs.version-check.outputs.should_run_verify == 'true' &&
+      needs.version-check.result == 'success' &&
+      needs.version-check.outputs.should_verify_published == 'true' &&
+      (
+        needs.version-check.outputs.should_run_verify == 'false' ||
+        needs.verify.result == 'success'
+      ) &&
       (
         needs.version-check.outputs.should_publish_npm == 'false' ||
         needs.publish-npm.result == 'success'
@@ -689,6 +712,9 @@ jobs:
           GH_REPO: ${{ github.repository }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           VERSION: ${{ needs.version-check.outputs.version }}
+          PUBLISHED_SOURCE_SHA: ${{ needs.version-check.outputs.published_source_sha }}
+          SHOULD_PUBLISH_NPM: ${{ needs.version-check.outputs.should_publish_npm }}
+          EXPECTED_INTEGRITY: ${{ needs.version-check.outputs.should_run_verify == 'false' && needs.version-check.outputs.published_integrity || needs.verify.outputs.package_integrity }}
         run: |
           set -euxo pipefail
 
@@ -714,7 +740,8 @@ jobs:
           done
 
           published_integrity=$(npm view "@advaitpaliwal/feynman@$VERSION" dist.integrity)
-          test "$published_integrity" = "${{ needs.verify.outputs.package_integrity }}"
+          test -n "$EXPECTED_INTEGRITY"
+          test "$published_integrity" = "$EXPECTED_INTEGRITY"
 
           consumer="$RUNNER_TEMP/published-consumer"
           mkdir -p "$consumer"
@@ -749,8 +776,33 @@ jobs:
             "$published_integrity" \
             "https://github.com/$GITHUB_REPOSITORY" \
             ".github/workflows/publish.yml" \
-            "refs/heads/main")
-          test "$published_source_sha" = "$GITHUB_SHA"
+            "refs/heads/main" \
+            '${{ github.repository_owner_id }}' \
+            '${{ github.repository_id }}')
+          # Reconciliation verifies the published source, not a later docs/CI commit.
+          case "$SHOULD_PUBLISH_NPM" in
+            false) expected_source_sha="$PUBLISHED_SOURCE_SHA" ;;
+            true) expected_source_sha="$GITHUB_SHA" ;;
+            *) exit 1 ;;
+          esac
+          [[ "$expected_source_sha" =~ ^[0-9a-f]{40}$ ]] || exit 1
+          test "$published_source_sha" = "$expected_source_sha"
+          release_target=$(gh release view "v$VERSION" --json targetCommitish --jq .targetCommitish)
+          test "$release_target" = "$expected_source_sha"
+          release_tag_sha=$(gh api \
+            "repos/$GITHUB_REPOSITORY/commits/refs/tags/v$VERSION" \
+            --jq .sha)
+          test "$release_tag_sha" = "$expected_source_sha"
+          release_relation=$(gh api \
+            "repos/$GITHUB_REPOSITORY/compare/$expected_source_sha...$GITHUB_SHA" \
+            --jq .status)
+          case "$release_relation" in
+            identical | ahead) ;;
+            *)
+              echo "Published source $expected_source_sha is not an ancestor of $GITHUB_SHA (status: $release_relation)" >&2
+              exit 1
+              ;;
+          esac
           npm audit --omit=dev --prefix "$consumer"
           bin="$consumer/node_modules/.bin/feynman"
           test "$("$bin" --version | tail -1)" = "$VERSION"
@@ -777,8 +829,6 @@ jobs:
           gh release download "v$VERSION" \
             --pattern "SHA256SUMS" \
             --dir "$release_dir"
-          release_target=$(gh release view "v$VERSION" --json targetCommitish --jq .targetCommitish)
-          test "$release_target" = "$GITHUB_SHA"
           RELEASE_DIR="$release_dir" VERSION="$VERSION" node <<'NODE'
           const { readFileSync, readdirSync, statSync } = require("node:fs");
           const expectedArchives = [
