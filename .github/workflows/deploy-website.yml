@@ -1,0 +1,186 @@
+name: Deploy website
+
+on:
+  workflow_run:
+    workflows: ["Publish and Release"]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
+# Pending runs can be replaced. Every survivor reconciles qualified current main.
+# Never interrupt an active production upload.
+concurrency:
+  group: website-production-${{ github.repository }}
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    if: >-
+      github.repository == 'advaitpaliwal/feynman' &&
+      (
+        (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main') ||
+        (
+          github.event_name == 'workflow_run' &&
+          github.event.workflow_run.name == 'Publish and Release' &&
+          github.event.workflow_run.path == '.github/workflows/publish.yml' &&
+          github.event.workflow_run.conclusion == 'success' &&
+          github.event.workflow_run.event == 'push' &&
+          github.event.workflow_run.head_branch == 'main' &&
+          github.event.workflow_run.repository.full_name == github.repository &&
+          github.event.workflow_run.head_repository.full_name == github.repository &&
+          github.event.workflow_run.head_repository.fork == false
+        )
+      )
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Validate initiating event SHA
+        id: initiating
+        shell: bash
+        env:
+          RELEASE_SHA: ${{ github.event.workflow_run.head_sha }}
+          MANUAL_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          case "$GITHUB_EVENT_NAME" in
+            workflow_run) source_sha="$RELEASE_SHA" ;;
+            workflow_dispatch) source_sha="$MANUAL_SHA" ;;
+            *) exit 1 ;;
+          esac
+          [[ "$source_sha" =~ ^[0-9a-f]{40}$ ]] || exit 1
+          echo "sha=$source_sha" >> "$GITHUB_OUTPUT"
+
+      - name: Resolve current qualified main
+        id: source
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          INITIATING_SHA: ${{ steps.initiating.outputs.sha }}
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const { execFileSync } = require("node:child_process");
+          const { appendFileSync } = require("node:fs");
+          const repository = "advaitpaliwal/feynman";
+          const path = ".github/workflows/publish.yml";
+          const api = (endpoint, ...flags) => JSON.parse(execFileSync(
+            "gh", ["api", "--hostname", "github.com", `repos/${repository}/${endpoint}`, ...flags],
+            { encoding: "utf8", maxBuffer: 16 * 1024 * 1024 },
+          ));
+          const ref = api("git/ref/heads/main");
+          const sha = ref.object?.sha;
+          if (ref.ref !== "refs/heads/main" || ref.object?.type !== "commit" ||
+              typeof sha !== "string" || !/^[0-9a-f]{40}$/.test(sha)) {
+            throw new Error("GitHub did not return an exact main commit");
+          }
+          const workflow = api("actions/workflows/publish.yml");
+          if (workflow.path !== path || workflow.name !== "Publish and Release" ||
+              !Number.isSafeInteger(workflow.id) || workflow.id <= 0) {
+            throw new Error("GitHub did not resolve the expected publisher workflow");
+          }
+          const pages = api(
+            `actions/workflows/${workflow.id}/runs?branch=main&event=push&status=success&head_sha=${sha}&per_page=100`,
+            "--paginate", "--slurp",
+          );
+          if (!Array.isArray(pages) || pages.some(page => !Array.isArray(page?.workflow_runs))) {
+            throw new Error("Invalid publisher run response");
+          }
+          // Verify response fields independently of the API's query filters.
+          const publisher = pages.flatMap(page => page.workflow_runs).find(run =>
+            Number.isSafeInteger(run?.id) && run.id > 0 &&
+            run.workflow_id === workflow.id && run.path === path &&
+            run.name === "Publish and Release" &&
+            run.status === "completed" && run.conclusion === "success" &&
+            run.event === "push" && run.head_branch === "main" && run.head_sha === sha &&
+            run.repository?.full_name === repository &&
+            run.head_repository?.full_name === repository && run.head_repository?.fork === false
+          );
+          if (!publisher) {
+            console.log(`Skipping main ${sha}: no successful completed same-repository main-push publisher.`);
+          } else {
+            console.log(`Trigger ${process.env.INITIATING_SHA}: reconciling main ${sha}, publisher run ${publisher.id}.`);
+            appendFileSync(process.env.GITHUB_OUTPUT,
+              `sha=${sha}\npublisher_run_id=${publisher.id}\neligible=true\n`);
+          }
+          NODE
+
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        if: steps.source.outputs.eligible == 'true'
+        with:
+          repository: advaitpaliwal/feynman
+          ref: ${{ steps.source.outputs.sha }}
+          persist-credentials: false
+
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        if: steps.source.outputs.eligible == 'true'
+        with:
+          node-version-file: .nvmrc
+
+      - name: Require the personal npm release
+        if: steps.source.outputs.eligible == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          package_name=$(node -p "require('./package.json').name")
+          version=$(node -p "require('./package.json').version")
+          test "$package_name" = "@advaitpaliwal/feynman"
+          published=$(npm view "$package_name@$version" version --registry=https://registry.npmjs.org)
+          test "$published" = "$version"
+
+      - name: Validate and build website
+        if: steps.source.outputs.eligible == 'true'
+        working-directory: website
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm ci
+          npm run lint
+          npm run typecheck
+          npm run build
+
+      - name: Install pinned deployment tooling without credentials
+        if: steps.source.outputs.eligible == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm install --prefix "$RUNNER_TEMP/feynman-wrangler" \
+            --no-save --no-package-lock --no-audit --no-fund wrangler@4.107.0
+
+      - name: Skip superseded source before upload
+        if: steps.source.outputs.eligible == 'true'
+        id: current
+        shell: bash
+        env:
+          SOURCE_SHA: ${{ steps.source.outputs.sha }}
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+          main_sha=$(git ls-remote https://github.com/advaitpaliwal/feynman.git refs/heads/main | cut -f1)
+          [[ "$main_sha" =~ ^[0-9a-f]{40}$ ]] || exit 1
+          if [ "$SOURCE_SHA" != "$main_sha" ]; then
+            echo "Skipping superseded source $SOURCE_SHA; main is $main_sha."
+            exit 0
+          fi
+          echo "deploy=true" >> "$GITHUB_OUTPUT"
+
+      - name: Deploy exact website output
+        if: steps.source.outputs.eligible == 'true' && steps.current.outputs.deploy == 'true'
+        working-directory: website
+        shell: bash
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: "2164ee7d134223511b4621d9b163a5ac"
+          SOURCE_SHA: ${{ steps.source.outputs.sha }}
+          WRANGLER_SEND_METRICS: "false"
+        run: |
+          set -euo pipefail
+          test -n "$CLOUDFLARE_API_TOKEN"
+          "$RUNNER_TEMP/feynman-wrangler/node_modules/.bin/wrangler" pages deploy ./dist \
+            --project-name=feynman --branch=main --commit-hash="$SOURCE_SHA"

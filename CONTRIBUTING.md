@@ -87,6 +87,45 @@ npm run build
   - `scripts/check-node-version.mjs`
   - install docs in `README.md` and `website/src/content/docs/getting-started/installation.md`
 
+### Website deployment
+
+The existing static `website/` build serves research docs and installers. Cloudflare
+Pages project `feynman` (`feynman-bpr.pages.dev`) uses
+`website/wrangler.jsonc` and uploads `website/dist`; building also synchronizes the
+canonical installer scripts into the site.
+
+`.github/workflows/deploy-website.yml` deploys only after a successful **Publish and
+Release** run triggered by a `main` push in `advaitpaliwal/feynman`, or a manual
+**Deploy website** dispatch on `main`. Forks, pull requests, unsuccessful releases,
+and non-main manual runs are excluded. Both automatic and manual runs validate
+their initiating SHA, then **reconcile current `main`**, not that initiating SHA.
+Before checkout, the GitHub API must prove a completed, successful, same-repository
+`main` push run of the existing `.github/workflows/publish.yml` at exactly current
+main's SHA. The workflow has `contents: read` and `actions: read`; the automatic
+`GITHUB_TOKEN` is exposed as `GH_TOKEN` only to this pre-checkout lookup.
+API errors fail closed; an unqualified main skips every remaining step. Manual
+dispatch does not bypass publisher success.
+
+The qualified SHA is checked out exactly, its root manifest's
+`@advaitpaliwal/feynman` version must exist on the public npm registry, and website
+`npm ci`, lint, typecheck, and build must pass. Production runs remain serialized
+without interrupting active uploads. GitHub can replace a pending run with a
+delayed older event; that surviving run now reconciles qualified current main,
+so it can deploy the newer release whose pending invocation was canceled. A final
+live-main check still skips the upload if main changed after source selection.
+There is no fallback to an older release when current main is unqualified; wait
+for its successful publisher event or dispatch again after that proof exists.
+
+Hosting and canonical secrets remain in the existing **Companion** organization:
+Infisical project **feynman**, environment **prod**, mirrored to GitHub repository
+secrets. GitHub and npm use the personal `advaitpaliwal` account. The existing
+`CLOUDFLARE_API_TOKEN` secret is passed only to the upload step, after Wrangler
+`4.107.0` is installed; no new credential is required. Cloudflare account ID
+`2164ee7d134223511b4621d9b163a5ac` is a nonsecret workflow constant.
+
+This configuration does not publish npm, change DNS, or establish a `feynman.is`
+domain cutover. Maintainers handle release completion and domain routing separately.
+
 ## AI-Assisted Contributions
 
 AI-assisted PRs are fine. The contributor is still responsible for the diff.
