@@ -239,6 +239,18 @@ test("publish uses the exact verified tarball after native bundles pass", () => 
 	);
 });
 
+test("all three provenance verifier calls pin immutable IDs from trusted GitHub context", () => {
+	const calls = [...publishWorkflow.matchAll(/node scripts\/verify-npm-provenance\.mjs \\\n[\s\S]*?\)/g)];
+	assert.equal(calls.length, 3);
+	for (const [call] of calls) {
+		assert.match(call,
+			/"refs\/heads\/main" \\\n\s+'\$\{\{ github\.repository_owner_id \}\}' \\\n\s+'\$\{\{ github\.repository_id \}\}'\)$/);
+		assert.match(call, /"https:\/\/github\.com\/\$GITHUB_REPOSITORY"/);
+		assert.match(call, /"\.github\/workflows\/publish\.yml"/);
+	}
+	assert.equal((publishWorkflow.match(/audit signatures --json --include-attestations/g) ?? []).length, 3);
+});
+
 test("GitHub release waits for verification, native bundles, and npm publication", () => {
 	assert.match(
 		publishWorkflow,
