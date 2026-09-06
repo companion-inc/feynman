@@ -14,12 +14,6 @@ permissions:
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
 
-# Pending runs can be replaced. Every survivor reconciles qualified current main.
-# Never interrupt an active production upload.
-concurrency:
-  group: website-production-${{ github.repository }}
-  cancel-in-progress: false
-
 jobs:
   deploy:
     if: >-
@@ -38,6 +32,11 @@ jobs:
           github.event.workflow_run.head_repository.fork == false
         )
       )
+    # Rejected jobs never enter this queue. Every survivor reconciles qualified main.
+    # Never interrupt an active production upload.
+    concurrency:
+      group: website-production-${{ github.repository }}
+      cancel-in-progress: false
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:

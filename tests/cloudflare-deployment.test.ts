@@ -280,7 +280,7 @@ test("API errors, malformed main refs and unresolved publisher identities fail c
 });
 
 test("delayed A replaces pending B but the surviving serialized invocation deploys qualified B", deploymentShell, () => {
-	assert.equal(workflow.concurrency["cancel-in-progress"], false);
+	assert.equal(job.concurrency["cancel-in-progress"], false);
 	// Model GitHub's default single-pending-slot replacement, not a live scheduler.
 	const active = { name: "A active", event: "workflow_run", initiatingSha: sha };
 	let pending = { name: "B pending", event: "workflow_run", initiatingSha: newerSha };
@@ -370,7 +370,8 @@ test("freshness gate skips outdated sources and rejects missing refs or network 
 		assert.notEqual(result.status, 0, JSON.stringify(env));
 		assert.equal(result.output, "");
 	}
-	assert.deepEqual(workflow.concurrency, {
+	assert.equal(workflow.concurrency, undefined, "rejected events must not enter a workflow-level deployment queue");
+	assert.deepEqual(job.concurrency, {
 		group: "website-production-${{ github.repository }}",
 		"cancel-in-progress": false,
 	});
