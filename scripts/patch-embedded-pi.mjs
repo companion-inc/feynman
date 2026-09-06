@@ -320,7 +320,7 @@ const workspaceSetupLockDir = resolve(appRoot, ".feynman", ".workspace-setup.loc
 const globalNodeModulesRoot = process.platform === "win32"
 	? resolve(feynmanNpmPrefix, "node_modules")
 	: resolve(feynmanNpmPrefix, "lib", "node_modules");
-const PRUNE_VERSION = 8;
+const PRUNE_VERSION = 9;
 const NATIVE_PACKAGE_SPECS = new Set([
 	"@kaiserlich-dev/pi-session-search",
 ]);
