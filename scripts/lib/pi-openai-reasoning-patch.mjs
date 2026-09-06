@@ -271,6 +271,58 @@ export function patchPiOpenAiStructuredReasoningSource(source) {
 	if (isPiOpenAiStructuredReasoningPatched(source)) {
 		return source;
 	}
+	if (source.includes("        let streamedReasoningDetails;")) {
+		// Upstream 0.85.1 landed structured replay but its accumulator is shared
+		// across thinking blocks. Retain our per-block, once-only finalization
+		// and scoped legacy-message replay without undoing new stream events.
+		let patched = replaceRequired(source,
+			`        let streamedReasoningDetails;
+        const applyStreamedReasoningDetails = (block) => {
+            if (streamedReasoningDetails !== undefined) {
+                block.thinkingSignature = JSON.stringify(streamedReasoningDetails);
+            }
+        };`,
+			OPENAI_REASONING_STREAM_STATE, "0.85.1 reasoning accumulator");
+		patched = replaceRequired(patched,
+			`                            ensureThinkingBlock("");
+                            streamedReasoningDetails ??= [];
+                            // Keep provider replay data in the existing signature slot. OpenRouter streams
+                            // reasoning_details as deltas: consecutive text/summary deltas are merged into
+                            // logical entries, while encrypted entries remain opaque and discrete.
+                            appendOpenAIReasoningDetail(streamedReasoningDetails, detail);`,
+			`                            const block = ensureThinkingBlock("");
+                            let preservedDetails = openAiReasoningDetailsByBlock.get(block);
+                            if (!preservedDetails) {
+                                preservedDetails = [];
+                                openAiReasoningDetailsByBlock.set(block, preservedDetails);
+                            }
+                            // Accumulate provider replay data in memory. OpenRouter streams
+                            // reasoning_details as deltas: consecutive text/summary deltas are merged into
+                            // logical entries, while encrypted entries remain opaque and discrete.
+                            appendOpenAIReasoningDetail(preservedDetails, detail);`,
+			"0.85.1 reasoning capture");
+		patched = replaceRequired(patched,
+			"                else if (block.type === \"thinking\") {\n                    applyStreamedReasoningDetails(block);",
+			"                else if (block.type === \"thinking\") {\n                    finalizeOpenAiReasoningDetails(block);", "0.85.1 thinking finalization");
+		// The same line occurs in the error boundary too; distinguish its wrapper.
+		patched = replaceRequired(patched,
+			`                if (block.type === "thinking") {
+                    applyStreamedReasoningDetails(block);
+                }
+                delete block.index;`,
+			"                finalizeOpenAiReasoningDetails(block);\n                delete block.index;",
+			"0.85.1 error finalization");
+		patched = replaceRequired(patched,
+			"return Array.isArray(parsed) && parsed.length > 0 && parsed.every(isOpenAIReasoningDetail) ? parsed : undefined;",
+			"return Array.isArray(parsed) && parsed.length > 0 && parsed.every(isOpenAIReasoningDetail)\n            ? parsed\n            : undefined;",
+			"0.85.1 reasoning parser formatting");
+		const start = patched.indexOf("            const thinkingBlocks = msg.content.filter(isThinkingContentBlock);");
+		const endFragment = "            const nonEmptyThinkingBlocks = thinkingBlocks.filter((block) => block.thinking.trim().length > 0);";
+		const end = patched.indexOf(endFragment, start);
+		if (start < 0 || end < 0) throw new Error("Unsupported Pi 0.85.1 reasoning replay boundary");
+		patched = patched.slice(0, start) + OPENAI_REASONING_REPLAY_SETUP + patched.slice(end + endFragment.length);
+		return patched;
+	}
 	if (source.includes(OPENAI_REASONING_DETAIL_HELPERS)) {
 		return patchPiOpenAiStructuredReasoningAccumulator(source);
 	}

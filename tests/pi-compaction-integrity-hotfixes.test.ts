@@ -162,8 +162,8 @@ function disableSummaryHelper(
 	return mutated;
 }
 
-test("Pi 0.84.2 compaction hotfix transforms are exact, idempotent, and fail closed", async () => {
-	assert.equal(PI_COMPACTION_TOOLS_REQUIRED_VERSION, "0.84.2");
+test("Pi 0.85.1 compaction hotfix transforms are exact, idempotent, and fail closed", async () => {
+	assert.equal(PI_COMPACTION_TOOLS_REQUIRED_VERSION, "0.85.1");
 	const installedHashes = new Map<string, string>();
 	for (const relativePath of PI_COMPACTION_TOOLS_PATCH_TARGETS) {
 		const target = resolve(installedPackageRoot, ...relativePath.split("/"));
@@ -330,7 +330,7 @@ test("Pi 0.84.2 compaction hotfix transforms are exact, idempotent, and fail clo
 					? JSON.stringify({ ...JSON.parse(readFileSync(path, "utf8")), version: "0.84.3" })
 					: readFileSync(path, "utf8"),
 			),
-			/0\.84\.3.*0\.84\.2|0\.84\.2.*0\.84\.3/,
+			/0\.84\.3.*0\.85\.1|0\.85\.1.*0\.84\.3/,
 		);
 		for (const mutation of guardMutations) {
 			const target = resolve(packageRoot, ...mutation.relativePath.split("/"));
@@ -651,7 +651,7 @@ test("model-bounded budgets preserve large-context behavior and make 8K compacti
 					timestamp: index + 1,
 				},
 			})),
-			2048,
+			4096,
 		);
 		const largePrompt = JSON.stringify(largeContext.messages);
 		assert.doesNotMatch(

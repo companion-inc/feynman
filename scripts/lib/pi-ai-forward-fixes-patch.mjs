@@ -14,6 +14,7 @@ import {
 	PI_BEDROCK_TOOL_RESULT_IMAGES_MARKER,
 	patchPiBedrockForwardFixSource,
 } from "./pi-bedrock-forward-fixes-patch.mjs";
+import { isCurrentPiAiCatalog, patchCurrentOpenAiCompletions } from "./pi-ai-forward-fixes-current.mjs";
 
 /**
  * Temporary Pi 0.84.2 forward patches for upstream commits:
@@ -37,7 +38,7 @@ import {
  * version that contains all fifteen fixes.
  */
 
-export const PI_AI_FORWARD_FIX_REQUIRED_VERSION = "0.84.2";
+export const PI_AI_FORWARD_FIX_REQUIRED_VERSION = "0.85.1";
 
 export const PI_AI_FORWARD_FIX_TARGETS = Object.freeze([
 	"dist/api/google-generative-ai.js",
@@ -372,6 +373,7 @@ function assertSourceFragments(source, relativePath, fragments) {
 }
 
 export function assertPiAiForwardFixSource(relativePath, source) {
+	if (isCurrentPiAiCatalog(relativePath, source)) return;
 	if (!relativePath.endsWith(".json") && source.includes("//# sourceMappingURL=")) {
 		throw new Error(`Incomplete Pi AI forward patch ${relativePath}: retained stale source map directive`);
 	}
@@ -518,6 +520,10 @@ function patchProviderNeutralToolChoice(relativePath, source) {
 		"        toolChoice: options?.toolChoice,",
 		"    };",
 	].join("\n");
+	const upstream = replacement.replace(`    // ${PI_AI_FORWARD_FIX_MARKERS.toolChoice}\n`, "");
+	if (source.includes(upstream)) {
+		return replaceRequired(source, upstream, replacement, `${relativePath} upstream tool choice`);
+	}
 	const patched = replaceRequired(source, original, replacement, `${relativePath} tool choice`);
 	assertSourceFragments(patched, relativePath, [
 		PI_AI_FORWARD_FIX_MARKERS.toolChoice,
@@ -551,6 +557,13 @@ export function resolveGoogleThinkingLevel(model, level) {
             throw new Error(\`Unsupported Google thinking level mapping for \${model.provider}/\${model.id}: \${level} -> \${String(mapped)}\`);
     }
 }`;
+	const upstreamHelper = helper.slice(helper.indexOf("export function"));
+	if (source.includes(upstreamHelper)) {
+		const patched = replaceRequired(source, upstreamHelper,
+			`// ${PI_AI_FORWARD_FIX_MARKERS.googleShared}\n${upstreamHelper}`, "upstream Google thinking map");
+		assertPiAiForwardFixSource(relativePath, patched);
+		return patched;
+	}
 	const patched = replaceRequired(source, anchor, helper, "Google shared thinking map");
 	assertPiAiForwardFixSource(relativePath, patched);
 	return patched;
@@ -558,6 +571,12 @@ export function resolveGoogleThinkingLevel(model, level) {
 
 function patchGoogleGenerativeAi(source) {
 	const relativePath = "dist/api/google-generative-ai.js";
+	if (!source.includes(PI_AI_FORWARD_FIX_MARKERS.googleGenerativeAi) &&
+		source.includes("const resolvedLevel = resolveGoogleThinkingLevel(model, clampedReasoning);")) {
+		const annotated = `// ${PI_AI_FORWARD_FIX_MARKERS.googleGenerativeAi}\n${source}`;
+		assertPiAiForwardFixSource(relativePath, annotated);
+		return annotated;
+	}
 	if (source.includes(PI_AI_FORWARD_FIX_MARKERS.googleGenerativeAi)) {
 		assertPiAiForwardFixSource(relativePath, source);
 		return source;
@@ -587,6 +606,12 @@ function patchGoogleGenerativeAi(source) {
 
 function patchGoogleVertex(source) {
 	const relativePath = "dist/api/google-vertex.js";
+	if (!source.includes(PI_AI_FORWARD_FIX_MARKERS.googleVertex) &&
+		source.includes("const resolvedLevel = resolveGoogleThinkingLevel(model, clampedReasoning);")) {
+		const annotated = `// ${PI_AI_FORWARD_FIX_MARKERS.googleVertex}\n${source}`;
+		assertPiAiForwardFixSource(relativePath, annotated);
+		return annotated;
+	}
 	if (source.includes(PI_AI_FORWARD_FIX_MARKERS.googleVertex)) {
 		assertPiAiForwardFixSource(relativePath, source);
 		return source;
@@ -771,6 +796,11 @@ function patchOpenAiCompletions(source) {
 		patchedNormalize,
 		"OpenAI-compatible tool-call ID normalization",
 	);
+	if (patched.includes("        let streamedReasoningDetails;")) {
+		patched = patchCurrentOpenAiCompletions(patched);
+		assertPiAiForwardFixSource(relativePath, patched);
+		return patched;
+	}
 	patched = replaceRequired(
 		patched,
 		'import { retryProviderRequest } from "../utils/provider-retry.js";',
@@ -1090,6 +1120,7 @@ function patchPiAiTypesDeclaration(source) {
 }
 
 export function patchPiAiForwardFixSource(relativePath, source) {
+	if (isCurrentPiAiCatalog(relativePath, source)) return source;
 	if (relativePath.includes("/providers/data/")) {
 		if (relativePath.endsWith("/.manifest.json")) {
 			return patchModelDataManifest(relativePath, source);

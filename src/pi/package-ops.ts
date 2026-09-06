@@ -71,7 +71,7 @@ const FILTERED_INSTALL_OUTPUT_PATTERNS = [
 	/^run `npm fund` for details$/i,
 ];
 const APP_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..");
-const PI_RUNTIME_FALLBACK_VERSION = "0.84.2";
+const PI_RUNTIME_FALLBACK_VERSION = "0.85.1";
 const LEGACY_PI_RUNTIME_PACKAGE_ALIASES = {
 	"@mariozechner/pi-agent-core": "@earendil-works/pi-agent-core",
 	"@mariozechner/pi-ai": "@earendil-works/pi-ai",

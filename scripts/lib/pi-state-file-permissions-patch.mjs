@@ -1,4 +1,4 @@
-export const PI_STATE_FILE_PERMISSIONS_REQUIRED_VERSION = "0.84.2";
+export const PI_STATE_FILE_PERMISSIONS_REQUIRED_VERSION = "0.85.1";
 export const PI_STATE_FILE_PERMISSIONS_UPSTREAM_FIX =
 	"https://github.com/earendil-works/pi/commit/c49906ec7778";
 // Remove this forward patch after the first supported Pi release containing
@@ -52,6 +52,15 @@ export function patchPiStateFilePermissionsSource(source) {
 	if (source.includes(PATCH_MARKER)) {
 		assertPiStateFilePermissionsPatchSource(source);
 		return source;
+	}
+	// Upstream 0.85.1 now preserves modes on updates. Validate every original
+	// write/import invariant after annotation; never reintroduce chmod.
+	const upstream = "// The mode applies only on creation so administrator-managed modes and ACLs remain intact.";
+	if (source.includes(upstream)) {
+		requireCount(source, upstream, 1, "upstream mode policy");
+		const patched = source.replace(upstream, PATCH_MARKER);
+		assertPiStateFilePermissionsPatchSource(patched);
+		return patched;
 	}
 
 	requireCount(source, IMPORT_ANCHOR, 1, "import layout");

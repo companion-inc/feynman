@@ -1,8 +1,9 @@
 import assert from "node:assert/strict";
-import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
+import { runInNewContext } from "node:vm";
 
 import { testableChemistrySketcher } from "../extensions/research-tools/chemistry-sketcher.js";
 
@@ -18,26 +19,92 @@ test("bundled Ketcher treats untrusted monomer labels as text", () => {
 				"utf8",
 			),
 		);
-		assert.equal(packageJson.version, "3.17.2", packageName);
+		assert.equal(packageJson.version, "3.18.0", packageName);
 	}
 
-	const ketcherCore = readFileSync(
-		join(
-			process.cwd(),
-			"node_modules",
-			"ketcher-core",
-			"dist",
-			"index.modern.js",
+	const dist = join(process.cwd(), "node_modules", "ketcher-core", "dist");
+	const rendererPath = "application/render/renderers/UnsplitNucleotideRenderer.modern.js";
+	assert.ok(
+		readFileSync(join(dist, "index.modern.js"), "utf8").includes(
+			`export { UnsplitNucleotideRenderer } from './${rendererPath}';`,
 		),
-		"utf8",
+		"check the renderer actually exported by the installed split-module bundle",
 	);
+	const ketcherCore = readFileSync(join(dist, rendererPath), "utf8");
 	assert.match(
 		ketcherCore,
 		/foreignObject\.append\('xhtml:div'\)[^;]+\.text\(this\.monomer\.label\)/,
 	);
-	assert.doesNotMatch(
-		ketcherCore,
-		/\.html\([^;]{0,1000}this\.monomer\.label/,
+	// Preserve the old whole-bundle negative guard across the split JS modules.
+	for (const file of readdirSync(dist, { recursive: true, encoding: "utf8" })) {
+		if (file.endsWith(".modern.js")) {
+			assert.doesNotMatch(
+				readFileSync(join(dist, file), "utf8"),
+				/\.html\([^;]{0,1000}this\.monomer\.label/,
+				file,
+			);
+		}
+	}
+
+	const methods = [...ketcherCore.matchAll(
+		/value: function appendLabel\(rootElement\) \{([\s\S]*?)\n    \}/g,
+	)];
+	assert.equal(methods.length, 1, "extract exactly one complete installed appendLabel method");
+	const body = methods[0][1];
+	assert.doesNotMatch(body, /\.html\s*\(/);
+
+	function renderLabel(methodBody: string, label: string) {
+		const elements: { name: string; textContent: string; children: unknown[] }[] = [];
+		function selection(name: string) {
+			const element = { name, textContent: "", children: [] as unknown[] };
+			elements.push(element);
+			const result = {
+				append(childName: string) {
+					const child = selection(childName);
+					element.children.push(child.element);
+					return child;
+				},
+				attr() { return result; },
+				style() { return result; },
+				text(value: string) {
+					element.textContent = value;
+					return result;
+				},
+				html() { throw new Error("unsafe HTML sink reached"); },
+				element,
+			};
+			return result;
+		}
+		const rootElement = selection("g");
+		// Execute the actual installed method, not a reimplementation of its sink.
+		runInNewContext(
+			`(function appendLabel(rootElement) {${methodBody}\n}).call(renderer, rootElement)`,
+			{
+				rootElement,
+				renderer: { width: 32, height: 24, textColor: "black", monomer: { label } },
+			},
+			{ timeout: 1_000 },
+		);
+		const labels = elements.filter((element) => element.name === "xhtml:div");
+		assert.equal(labels.length, 1);
+		assert.equal(labels[0].textContent, label);
+		assert.deepEqual(labels[0].children, []);
+		assert.deepEqual(elements.map((element) => element.name), ["g", "foreignObject", "xhtml:div"]);
+	}
+
+	for (const label of [
+		'<img src=x onerror="globalThis.compromised=true">',
+		'<svg onload="globalThis.compromised=true"></svg>',
+		'A & B < C "quoted" \u03b1',
+	]) {
+		renderLabel(body, label);
+	}
+	const unsafeBody = body.replace(".text(this.monomer.label)", ".html(this.monomer.label)");
+	assert.notEqual(unsafeBody, body, "negative control must mutate the real label sink");
+	assert.throws(
+		() => renderLabel(unsafeBody, "<img src=x onerror=alert(1)>"),
+		/unsafe HTML sink reached/,
+		"the behavioral harness must reject the historical HTML-sink regression",
 	);
 });
 

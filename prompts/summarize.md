@@ -130,17 +130,17 @@ Briefly summarize: "Source is ~<chars> chars -> <N> chunks -> <N> researcher sub
 
 ### 3c. Dispatch researcher subagents
 
+Use one async workflow with a stable key for each chunk and a concurrency limit of four. Expand the example item below for the actual chunk inventory; retain the single-source restriction and explicit output declaration for every child.
+
 ```json
 {
-  "tasks": [{
-    "agent": "researcher",
-    "task": "Read ONLY `outputs/.notes/<slug>-chunk-NNN.txt`. Extract: (1) key claims, (2) methodology or technical approach, (3) cited evidence. Do NOT use web_search or fetch external URLs — this is single-source summarization. If a claim appears to start or end mid-sentence at the file boundary, mark it BOUNDARY PARTIAL. Write to `outputs/.notes/<slug>-summary-chunk-NNN.md`.",
-    "output": "outputs/.notes/<slug>-summary-chunk-NNN.md"
-  }],
-  "concurrency": 4,
-  "failFast": false
+  "workflowScript": "return await runs.all([{key:'chunk-NNN',agent:'researcher',task:'Read ONLY outputs/.notes/<slug>-chunk-NNN.txt. Extract: (1) key claims, (2) methodology or technical approach, (3) cited evidence. Do NOT use web_search or fetch external URLs — this is single-source summarization. If a claim appears to start or end mid-sentence at the file boundary, mark it BOUNDARY PARTIAL. Write to outputs/.notes/<slug>-summary-chunk-NNN.md.',output:'outputs/.notes/<slug>-summary-chunk-NNN.md'}]);",
+  "async": true,
+  "globalConcurrencyLimit": 4
 }
 ```
+
+Consume completion results before aggregation. `runs.all` returns an ordered array including ordinary child failures; inspect each `ok` and error. A validation or infrastructure failure can still fail the workflow. Use actual returned output/artifact references to locate child files, verify them on disk, and copy them to the expected chunk-summary paths when necessary. Record missing or failed chunks rather than treating an async launch receipt as a finished summary.
 
 ### 3d. Aggregate
 

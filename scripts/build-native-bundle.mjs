@@ -3,6 +3,7 @@ import { createHash } from "node:crypto";
 import { tmpdir } from "node:os";
 import { basename, dirname, join, resolve } from "node:path";
 import { spawnSync } from "node:child_process";
+import { patchPiEsbuildPackageTree } from "./lib/pi-esbuild-package-patch.mjs";
 import {
 	computeRuntimeArchiveTreeHash,
 	computeRuntimeTreeHash,
@@ -24,12 +25,12 @@ const packageLockPath = resolve(appRoot, "package-lock.json");
 const minBundledNodeVersion = packageJson.engines?.node?.match(/>=\s*([0-9]+\.[0-9]+\.[0-9]+)/)?.[1] || process.version.slice(1);
 const releaseNodeVersion = readFileSync(resolve(appRoot, ".nvmrc"), "utf8").trim().replace(/^v/, "");
 const PINNED_NODE_ARCHIVE_SHA256 = {
-	"node-v24.18.0-darwin-arm64.tar.xz": "4477b9f78efb77744cf5eb57a0e9594dba66466b38b4e93fa9f35cb907a095a6",
-	"node-v24.18.0-darwin-x64.tar.xz": "4a3b6bc81542154430825128d9a279e8b364e8d90581544e506ef7579fd1ab6f",
-	"node-v24.18.0-linux-arm64.tar.xz": "58c9520501f6ae2b52d5b210444e24b9d0c029a58c5011b797bc1fe7105886f6",
-	"node-v24.18.0-linux-x64.tar.xz": "55aa7153f9d88f28d765fcdad5ae6945b5c0f98a36881703817e4c450fa76742",
-	"node-v24.18.0-win-arm64.zip": "f274669adb93b1fd0fbf8f21fd078609e9dcc84333d4f2718d2dde3f9a161a01",
-	"node-v24.18.0-win-x64.zip": "0ae68406b42d7725661da979b1403ec9926da205c6770827f33aac9d8f26e821",
+	"node-v24.20.0-darwin-arm64.tar.xz": "b7bf7707070b950ba1ec5f1af3bb6de0f2b1962c5033973d94068ab021ef3014",
+	"node-v24.20.0-darwin-x64.tar.xz": "26fc30891004603d094eed11de5efcd03bbd2efbc35c177fc72648d5d7a7701b",
+	"node-v24.20.0-linux-arm64.tar.xz": "5f4ddab610c1ab2016b3c227cebdbf6d9495161487e4739c7b90090595f465f7",
+	"node-v24.20.0-linux-x64.tar.xz": "2f2c0da162318f0de47665410c7c8c2ed3d36c8f3105de4bbc61176c70a7cbf2",
+	"node-v24.20.0-win-arm64.zip": "31c6799744de8a54601643098040c68c3697e56c94e407d61d0e5fa5f34191d7",
+	"node-v24.20.0-win-x64.zip": "6cac9ffbca8f6a47091e4b5c772e0606049c3871cb67d900c0cedde630e545ba",
 };
 
 function parseSemver(version) {
@@ -219,7 +220,8 @@ function installAppDependencies(appDir, stagingRoot) {
 	run("npm", ["ci", "--omit=dev", "--ignore-scripts", "--no-audit", "--no-fund", "--loglevel", "error"], {
 		cwd: depsDir,
 	});
-	run(process.execPath, [resolve(appRoot, "scripts", "prune-runtime-deps.mjs"), depsDir], {
+	patchPiEsbuildPackageTree(resolve(depsDir, "node_modules"));
+	run(process.execPath, [resolve(appRoot, "scripts", "prune-runtime-deps.mjs"), depsDir, "--platform-native"], {
 		cwd: appRoot,
 	});
 

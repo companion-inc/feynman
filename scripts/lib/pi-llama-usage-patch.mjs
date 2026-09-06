@@ -1,4 +1,4 @@
-export const PI_LLAMA_USAGE_REQUIRED_VERSION = "0.84.2";
+export const PI_LLAMA_USAGE_REQUIRED_VERSION = "0.85.1";
 export const PI_LLAMA_USAGE_PATCH_MARKER =
 	"Feynman Pi 0.84.2 llama.cpp cached usage migration";
 

@@ -21,22 +21,22 @@ test("MCP SDK package patch carries the safe Hono node server into bundled consu
 		const patched = JSON.parse(patchMcpSdkPackageJsonSource(source)) as {
 			dependencies: Record<string, string>;
 		};
-		assert.equal(patched.dependencies["@hono/node-server"], "2.0.12");
+		assert.equal(patched.dependencies["@hono/node-server"], "2.1.1");
 	}
 });
 
 test("MCP SDK package patch is idempotent and replaces unsafe lower 2.x ranges", () => {
 	const safe = JSON.stringify({
 		dependencies: {
-			"@hono/node-server": "2.0.12",
+			"@hono/node-server": "2.1.1",
 		},
 	});
 	assert.equal(patchMcpSdkPackageJsonSource(safe), safe);
-	for (const unsafe of ["2.0.0", "^2.0.0", "~2.0.4"]) {
+	for (const unsafe of ["2.0.0", "^2.0.0", "~2.0.4", "2.0.12"]) {
 		const patched = JSON.parse(patchMcpSdkPackageJsonSource(JSON.stringify({
 			dependencies: { "@hono/node-server": unsafe },
 		}))) as { dependencies: Record<string, string> };
-		assert.equal(patched.dependencies["@hono/node-server"], "2.0.12");
+		assert.equal(patched.dependencies["@hono/node-server"], "2.1.1");
 	}
 });
 

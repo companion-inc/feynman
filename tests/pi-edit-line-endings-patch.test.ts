@@ -25,10 +25,10 @@ const piPackageRoot = resolve(
 );
 
 test("Pi edit line-ending patch is exact, complete, and idempotent", () => {
-	assert.doesNotThrow(() => assertPiEditLineEndingsVersion("0.84.2", "test"));
+	assert.doesNotThrow(() => assertPiEditLineEndingsVersion("0.85.1", "test"));
 	assert.throws(
 		() => assertPiEditLineEndingsVersion("0.84.3", "test"),
-		/expected 0\.84\.2/,
+		/expected 0\.85\.1/,
 	);
 	for (const relativePath of PI_EDIT_LINE_ENDINGS_PATCH_TARGETS) {
 		const source = readFileSync(resolve(piPackageRoot, relativePath), "utf8");

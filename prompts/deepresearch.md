@@ -86,7 +86,8 @@ If subagents were chosen:
 - Keep `subagent` tool-call JSON small and valid.
 - Do not place multi-paragraph instructions inside the `subagent` JSON.
 - Use only supported `subagent` keys. Do not add extra keys such as `artifacts` unless the tool schema explicitly exposes them.
-- Always set `failFast: false`.
+- Use one async `workflowScript` with `await runs.all(...)` for parallel evidence gathering. Each item needs a unique stable `key`, plus its agent, short task, and output path. Set `globalConcurrencyLimit: 4` on the outer call.
+- Read the ordered result array and record each child's `ok`, error, and returned output/artifact paths. Ordinary child failures are collected by `runs.all`; validation or infrastructure failure can still fail the workflow. Do not assume every output exists.
 - Do not name exact tool commands in subagent tasks unless those tool names are visible in the current tool set.
 - Prefer broad guidance such as "use paper search and web search"; if a PDF parser or paper fetch fails, the researcher must continue from metadata, abstracts, and web sources and mark PDF parsing as blocked.
 
@@ -94,16 +95,13 @@ Example shape:
 
 ```json
 {
-  "tasks": [
-    { "agent": "researcher", "task": "Read outputs/.plans/<slug>-T1.md and write <slug>-research-web.md.", "output": "<slug>-research-web.md" },
-    { "agent": "researcher", "task": "Read outputs/.plans/<slug>-T2.md and write <slug>-research-papers.md.", "output": "<slug>-research-papers.md" }
-  ],
-  "concurrency": 4,
-  "failFast": false
+  "workflowScript": "return await runs.all([{key:'web',agent:'researcher',task:'Read outputs/.plans/<slug>-T1.md and write <slug>-research-web.md.',output:'<slug>-research-web.md'},{key:'papers',agent:'researcher',task:'Read outputs/.plans/<slug>-T2.md and write <slug>-research-papers.md.',output:'<slug>-research-papers.md'}]);",
+  "async": true,
+  "globalConcurrencyLimit": 4
 }
 ```
 
-After evidence gathering, update the plan ledger and verification log. If research failed, record exactly what failed and proceed with a blocked or partial draft.
+Continue independent work after launch, then consume completion results before synthesis. Use the returned output references to locate managed child files; verify them on disk and copy them to the planned research paths when necessary. After evidence gathering, update the plan ledger and verification log. If research failed, record exactly what failed and proceed with a blocked or partial draft.
 
 ## Step 4: Draft
 
@@ -138,12 +136,13 @@ Use this shape:
 ```json
 {
   "agent": "verifier",
+  "async": true,
   "task": "Add inline citations to outputs/.drafts/<slug>-draft.md using the research files as source material. Verify every URL. Write the complete cited brief to outputs/.drafts/<slug>-cited.md.",
   "output": "outputs/.drafts/<slug>-cited.md"
 }
 ```
 
-After the verifier returns, verify on disk that `outputs/.drafts/<slug>-cited.md` exists. If the verifier wrote elsewhere, find the cited file and move or copy it to `outputs/.drafts/<slug>-cited.md`.
+Wait for the verifier's completion result before review, not merely the async launch receipt. Verify on disk that `outputs/.drafts/<slug>-cited.md` exists. If managed output routing wrote elsewhere, use the returned output reference to find the cited file and move or copy it to `outputs/.drafts/<slug>-cited.md`.
 
 ## Step 6: Review
 
@@ -160,12 +159,13 @@ Use this shape:
 ```json
 {
   "agent": "reviewer",
+  "async": true,
   "task": "Verify outputs/.drafts/<slug>-cited.md. Flag unsupported claims, logical gaps, single-source critical claims, and overstated confidence. This is a verification pass, not a peer review.",
   "output": "<slug>-verification.md"
 }
 ```
 
-If the reviewer flags FATAL issues, fix them before delivery and run one more review pass. Note MAJOR issues in Open Questions. Accept MINOR issues.
+Consume the review completion result and locate its returned output before proceeding. If the reviewer flags FATAL issues, fix them before delivery and run one more review pass. Note MAJOR issues in Open Questions. Accept MINOR issues.
 
 When applying reviewer fixes, do not issue one giant `edit` tool call with many replacements. Use small localized edits only for 1-3 simple corrections. For section rewrites, table rewrites, or more than 3 substantive fixes, read the cited draft and write a corrected full file to `outputs/.drafts/<slug>-revised.md` instead.
 

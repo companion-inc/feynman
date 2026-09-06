@@ -13,7 +13,7 @@ import { registerModelEndpointTools } from "../extensions/research-tools/model-e
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const researchToolsRoot = join(repoRoot, "extensions", "research-tools");
-const coordinatedTypeboxVersion = "1.3.7";
+const coordinatedTypeboxVersion = "1.3.27";
 
 function readJson(path: string): Record<string, any> {
 	return JSON.parse(readFileSync(path, "utf8")) as Record<string, any>;

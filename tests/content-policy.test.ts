@@ -612,7 +612,22 @@ test("deepresearch keeps subagent tool calls small and skips subagents for narro
 	assert.match(deepResearchPrompt, /write a per-researcher brief first/i);
 	assert.match(deepResearchPrompt, /Do not place multi-paragraph instructions inside the `subagent` JSON/i);
 	assert.match(deepResearchPrompt, /Do not add extra keys such as `artifacts`/i);
-	assert.match(deepResearchPrompt, /always set `failFast: false`/i);
+	assert.match(deepResearchPrompt, /one async `workflowScript` with `await runs\.all\(\.\.\.\)`/i);
+	assert.match(deepResearchPrompt, /Ordinary child failures are collected by `runs\.all`/);
+	assert.match(deepResearchPrompt, /consume completion results before synthesis/i);
+	const examples = [...deepResearchPrompt.matchAll(/```json\n([\s\S]*?)\n```/g)]
+		.map((match) => JSON.parse(match[1]!));
+	const parallel = examples.find((example) => typeof example.workflowScript === "string");
+	assert.ok(parallel, "deepresearch must document the current parallel subagent call");
+	assert.equal(parallel.async, true);
+	assert.equal(parallel.globalConcurrencyLimit, 4);
+	assert.match(parallel.workflowScript, /return await runs\.all\(/);
+	assert.match(parallel.workflowScript, /outputs\/\.plans\/<slug>-T1\.md/);
+	for (const example of examples) {
+		for (const removed of ["tasks", "chain", "failFast", "concurrency"]) {
+			assert.equal(example[removed], undefined, `obsolete subagent argument: ${removed}`);
+		}
+	}
 	assert.match(deepResearchPrompt, /if a PDF parser or paper fetch fails/i);
 });
 

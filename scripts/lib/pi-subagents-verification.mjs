@@ -16,20 +16,9 @@ import { pathToFileURL } from "node:url";
 
 import { assertPiSubagentAgentDiagnosticsSources } from "./pi-subagents-agent-diagnostics-patch.mjs";
 import { assertPiSubagentPromptMetadataSources } from "./pi-subagents-prompt-metadata-patch.mjs";
-
-const USAGE_LIMIT_FALLBACK_BLOCK = [
-	"const RETRYABLE_MODEL_FAILURE_PATTERNS = [",
-	"\t/rate\\s*limit/i,",
-	"\t/usage\\s*limit/i,",
-	"\t/too many requests/i,",
-].join("\n");
-
-export function assertPiSubagentUsageLimitFallbackSource(readSource, label) {
-	const source = readSource("src/runs/shared/model-fallback.ts");
-	if (!source.includes(USAGE_LIMIT_FALLBACK_BLOCK)) {
-		throw new Error(`${label} model fallback does not retry provider usage-limit errors`);
-	}
-}
+import { assertPiSubagentsNativeSources, isPiSubagentsNativeSource } from "./pi-subagents-native-patch.mjs";
+import { assertPiSubagentUsageLimitFallbackSource, verifyPiSubagentsNativeBehavior } from "./pi-subagents-native-verification.mjs";
+export { assertPiSubagentUsageLimitFallbackSource };
 
 function requireMarker(readSource, relativePath, marker, label) {
 	if (!readSource(relativePath).includes(marker)) {
@@ -38,6 +27,10 @@ function requireMarker(readSource, relativePath, marker, label) {
 }
 
 export function assertPiSubagentCorrectnessSources(readSource, label) {
+	if (isPiSubagentsNativeSource(readSource)) {
+		assertPiSubagentsNativeSources(readSource, label);
+		return;
+	}
 	for (const marker of [
 		'const SUBAGENT_MODEL_THINKING_SUFFIXES = new Set(["off", "minimal", "low", "medium", "high", "xhigh", "max"]);',
 		"entry.fullId === requested",
@@ -175,6 +168,10 @@ export function assertPiSubagentCorrectnessSources(readSource, label) {
 }
 
 export function assertPiSubagentPatchedSources(readSource, label = "pi-subagents") {
+	if (isPiSubagentsNativeSource(readSource)) {
+		assertPiSubagentsNativeSources(readSource, label);
+		return;
+	}
 	assertPiSubagentAgentDiagnosticsSources(readSource, label);
 	assertPiSubagentPromptMetadataSources(readSource, label);
 	assertPiSubagentUsageLimitFallbackSource(readSource, label);
@@ -1159,6 +1156,11 @@ export async function verifyPiSubagentUsageLimitFallbackBehavior(packageRoot) {
 	const jitiModule = await import(pathToFileURL(jitiEntryPath).href);
 	assert.equal(typeof jitiModule.createJiti, "function", "Installed Pi Jiti has no createJiti");
 	const jiti = jitiModule.createJiti(import.meta.url, { moduleCache: false });
+	const subagentsRoot = resolve(runtimeRoot, "node_modules", "pi-subagents");
+	if (isPiSubagentsNativeSource((relativePath) => readFileSync(resolve(subagentsRoot, relativePath), "utf8"))) {
+		await verifyPiSubagentsNativeBehavior(subagentsRoot, jiti);
+		return;
+	}
 	const fallback = await jiti.import(
 		resolve(runtimeRoot, "node_modules", "pi-subagents", "src", "runs", "shared", "model-fallback.ts"),
 	);

@@ -126,11 +126,11 @@ test("patchPiTuiSource truncates the current upstream overflow check after clear
 });
 
 test("embedded Pi TUI and editor patches apply without dropping Unicode behavior", () => {
-	const tuiMainScreen = readFileSync(
+	const tuiMainScreen = patchPiTuiSource(readFileSync(
 		join(process.cwd(), "node_modules", "@earendil-works", "pi-tui", "dist", "tui-main-screen.js"),
 		"utf8",
-	);
-	const editor = readFileSync(join(process.cwd(), "node_modules", "@earendil-works", "pi-tui", "dist", "components", "editor.js"), "utf8");
+	));
+	const editor = patchPiEditorSource(readFileSync(join(process.cwd(), "node_modules", "@earendil-works", "pi-tui", "dist", "components", "editor.js"), "utf8"));
 
 	assert.match(tuiMainScreen, /line = sliceByColumn\(line, 0, width, true\)/);
 	assert.doesNotMatch(tuiMainScreen, /Rendered line .* exceeds terminal width/);

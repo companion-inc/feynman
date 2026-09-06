@@ -1,5 +1,6 @@
-import { existsSync, readdirSync, rmSync, statSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync, rmSync, statSync } from "node:fs";
 import { basename, join, resolve } from "node:path";
+import { validateRuntimePlatformPruning } from "./lib/runtime-platform-pruning.mjs";
 
 const root = resolve(process.argv[2] ?? ".");
 const nodeModulesDir = resolve(root, "node_modules");
@@ -121,6 +122,18 @@ function pruneMermaid(nodeModulesRoot) {
 
 if (!existsSync(nodeModulesDir)) {
 	process.exit(0);
+}
+
+const platformKind = process.argv.includes("--platform-runtime") ? "runtime"
+	: process.argv.includes("--platform-native") ? "native" : undefined;
+if (platformKind) {
+	const lock = JSON.parse(readFileSync(join(root, "package-lock.json"), "utf8"));
+	// Validate the whole owned staging tree before the first deletion. The
+	// universal npm root never opts into this target-specific pruning.
+	const plan = validateRuntimePlatformPruning(root, lock, {
+		kind: platformKind, platform: process.platform, arch: process.arch,
+	});
+	for (const relativePath of plan.remove) removePath(join(plan.workspacePath, relativePath));
 }
 
 walkAndPrune(nodeModulesDir);

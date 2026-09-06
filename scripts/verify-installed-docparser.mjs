@@ -11,7 +11,7 @@ export const HIDDEN_GPO_STAMP = "jbell on PROD1PC69 with BILLS";
 export const HIDDEN_GPO_PRINT_STAMP =
 	"VerDate Aug 31 2005 05:35 Dec 11, 2008 Jkt 079200 PO 00000 Frm 00002 Fmt 6652 Sfmt 6301 E:\\BILLS\\H7337.IH H7337";
 const EXPECTED_PI_DOCPARSER_VERSION = "4.0.0";
-const EXPECTED_LITEPARSE_VERSION = "2.14.0";
+const EXPECTED_LITEPARSE_VERSION = "2.14.3";
 const EXPECTED_LITEPARSE_NATIVE_PACKAGES = [
 	"@llamaindex/liteparse-darwin-arm64",
 	"@llamaindex/liteparse-darwin-x64",

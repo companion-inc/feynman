@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 
-// pi-web-access 0.25.0 retains bounded Chromium expiry conversion and
+// pi-web-access 0.28.0 retains bounded Chromium expiry conversion and
 // app-bound-cookie rejection while adding browser/profile selection and
 // structured diagnostics, but its DPAPI subprocess again places protected
 // ciphertext in the child environment. Keep Feynman's narrower stdin-only
@@ -63,6 +63,6 @@ export function patchPiWebAccessWindowsCookiesSource(source) {
 		}
 	}
 	throw new Error(
-		`Unsupported pi-web-access 0.25.0 chrome-cookies.ts: expected ${BASELINE_SHA256} or ${PI_WEB_ACCESS_WINDOWS_COOKIES_SHA256}, found ${sourceDigest}`,
+		`Unsupported pi-web-access 0.28.0 chrome-cookies.ts: expected ${BASELINE_SHA256} or ${PI_WEB_ACCESS_WINDOWS_COOKIES_SHA256}, found ${sourceDigest}`,
 	);
 }

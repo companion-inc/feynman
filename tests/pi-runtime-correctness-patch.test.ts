@@ -24,7 +24,6 @@ import {
 import { patchPiRuntimeNodeModules } from "../src/pi/runtime-patches.js";
 
 const appRoot = process.cwd();
-patchPiRuntimeNodeModules(appRoot);
 
 const agentSessionPath = resolve(
 	appRoot,
@@ -140,7 +139,7 @@ function createResourceLoader(runtime: unknown) {
 }
 
 test("Pi 0.84.2 correctness patch is applied, idempotent, and documents its removal condition", () => {
-	const agentSessionSource = readFileSync(agentSessionPath, "utf8");
+	const agentSessionSource = patchPiAgentSessionSource(readFileSync(agentSessionPath, "utf8"));
 	const sessionManagerSource = readFileSync(sessionManagerPath, "utf8");
 	const transformMessagesSource = readFileSync(transformMessagesPath, "utf8");
 	const nestedTransformMessagesSource = readFileSync(nestedTransformMessagesPath, "utf8");
@@ -185,10 +184,11 @@ test("Pi 0.84.2 correctness patch is applied, idempotent, and documents its remo
 		assert.match(source, /export function abortableSleep/);
 	}
 	for (const source of [githubCopilotOAuthSource, nestedGithubCopilotOAuthSource]) {
-		assert.match(source, /upstream #8121/);
+		assertPiRuntimeCorrectnessPatchSource(source, "githubCopilotOAuth");
 		assert.match(source, /response\.status === 429/);
 		assert.match(source, /response\.headers\.get\("retry-after"\)/);
-		assert.match(source, /for \(const model of Object\.values\(GITHUB_COPILOT_MODELS\)\)/);
+		assert.match(source, /for \(const modelId of modelIds\)/);
+		assert.match(source, /await sleep\(delayMs, requestSignal\)/);
 		assert.doesNotMatch(source, /COPILOT_POLICY_CONCURRENCY/);
 	}
 	assert.match(patchSource, /Removal condition: delete this patch once a supported released Pi version/);
@@ -199,7 +199,9 @@ test("Pi 0.84.2 correctness patch is applied, idempotent, and documents its remo
 	assert.match(patchSource, /0b5ee5d8/);
 	assert.doesNotMatch(agentSessionSource, /sourceMappingURL/);
 
-	assert.equal(patchPiAgentSessionSource(agentSessionSource), agentSessionSource);
+	const patchedCurrentAgentSession = patchPiAgentSessionSource(agentSessionSource);
+	assert.match(patchedCurrentAgentSession, /deferred context waits for complete agent-run settlement/);
+	assert.equal(patchPiAgentSessionSource(patchedCurrentAgentSession), patchedCurrentAgentSession);
 	assert.equal(patchPiSessionManagerSource(sessionManagerSource), sessionManagerSource);
 	assert.equal(patchPiTransformMessagesSource(transformMessagesSource), transformMessagesSource);
 	assert.equal(patchPiTransformMessagesSource(nestedTransformMessagesSource), nestedTransformMessagesSource);
@@ -227,7 +229,10 @@ test("Pi 0.84.2 correctness patch is applied, idempotent, and documents its remo
 		["githubCopilotOAuth", githubCopilotOAuthSource],
 	] as const) {
 		assert.doesNotThrow(() => assertPiRuntimeCorrectnessPatchSource(source, target));
-		for (const fragment of PI_RUNTIME_CORRECTNESS_REQUIRED_FRAGMENTS[target]) {
+		const required = target === "githubCopilotOAuth"
+			? ["await sleep(delayMs, requestSignal);", "for (const modelId of modelIds)", "await response.body?.cancel();"]
+			: PI_RUNTIME_CORRECTNESS_REQUIRED_FRAGMENTS[target];
+		for (const fragment of required) {
 			assert.throws(
 				() => assertPiRuntimeCorrectnessPatchSource(source.replace(fragment, ""), target),
 				/Incomplete Pi runtime correctness patch/,
@@ -274,22 +279,22 @@ test("Pi 0.84.2 correctness patch is applied, idempotent, and documents its remo
 	);
 	assert.throws(
 		() => patchPiGithubCopilotDeviceCodeSource("function sleep() {}\n"),
-		/Unsupported Pi 0\.84\.2 github-copilot device-code export layout/,
+		/Unsupported Pi 0\.85\.1 abortable sleep export/,
 	);
 	assert.throws(
 		() => patchPiGithubCopilotOAuthSource("export const githubCopilotOAuth = {};\n"),
-		/Unsupported Pi 0\.84\.2 github-copilot OAuth import layout/,
+		/Unsupported Pi 0\.85\.1 github-copilot OAuth import layout/,
 	);
 	assert.doesNotThrow(() =>
 		assertPiRuntimeCorrectnessVersion(PI_RUNTIME_CORRECTNESS_REQUIRED_VERSION, "test"),
 	);
 	assert.throws(
 		() => assertPiRuntimeCorrectnessVersion("0.82.1", "test"),
-		/expected 0\.84\.2, found 0\.82\.1/,
+		/expected 0\.85\.1, found 0\.82\.1/,
 	);
 	assert.throws(
 		() => assertPiRuntimeCorrectnessVersion("0.84.0", "test"),
-		/expected 0\.84\.2, found 0\.84\.0/,
+		/expected 0\.85\.1, found 0\.84\.0/,
 	);
 });
 
@@ -451,6 +456,9 @@ test("GitHub Copilot login serializes policy updates and retries model discovery
 	let maxActivePolicyRequests = 0;
 	let policyRequestCount = 0;
 	let modelsRequestCount = 0;
+	const catalog = JSON.parse(readFileSync(resolve(appRoot, "node_modules", "@earendil-works",
+		"pi-ai", "dist", "providers", "data", "github-copilot.json"), "utf8"));
+	const policyIds = Object.values(catalog).flatMap(group => Object.keys(group as object)).slice(0, 2);
 	globalThis.fetch = async (input) => {
 		const url = typeof input === "string" || input instanceof URL
 			? String(input)
@@ -490,7 +498,7 @@ test("GitHub Copilot login serializes policy updates and retries model discovery
 				});
 			}
 			return Response.json({
-				data: [{ id: "gpt-5.4", model_picker_enabled: true }],
+				data: policyIds.map(id => ({ id, model_picker_enabled: true, policy: { state: "unconfigured" } })),
 			});
 		}
 		throw new Error(`Unexpected GitHub Copilot request: ${url}`);
@@ -511,10 +519,10 @@ test("GitHub Copilot login serializes policy updates and retries model discovery
 		signal: new AbortController().signal,
 	});
 
-	assert.ok(policyRequestCount > 1);
+	assert.equal(policyRequestCount, 2);
 	assert.equal(maxActivePolicyRequests, 1);
 	assert.equal(modelsRequestCount, 2);
-	assert.deepEqual(credentials.availableModelIds, ["gpt-5.4"]);
+	assert.deepEqual(credentials.availableModelIds, policyIds);
 });
 
 test("Pi 0.84.2 correctness patch migrates the pre-review eager persistence layout", () => {
@@ -589,11 +597,13 @@ test("package artifact verification rejects a mixed Pi runtime train", () => {
 	try {
 		const appManifest = JSON.parse(
 			readFileSync(resolve(appRoot, "package.json"), "utf8"),
-		) as { optionalDependencies?: Record<string, string> };
+		) as { optionalDependencies?: Record<string, string>; overrides: Record<string, string> };
+		const ipAddressVersion = appManifest.overrides["ip-address"];
+		assert.ok(ipAddressVersion);
 		mkdirSync(resolve(packageRoot, "node_modules", "ip-address"), { recursive: true });
 		writeFileSync(
 			resolve(packageRoot, "node_modules", "ip-address", "package.json"),
-			JSON.stringify({ name: "ip-address", version: "10.5.0" }),
+			JSON.stringify({ name: "ip-address", version: ipAddressVersion }),
 		);
 		writeFileSync(
 			resolve(packageRoot, "package.json"),
@@ -601,15 +611,15 @@ test("package artifact verification rejects a mixed Pi runtime train", () => {
 				name: "mixed-pi-artifact",
 				dependencies: {
 					"@earendil-works/pi-agent-core": "0.82.1",
-					"@earendil-works/pi-ai": "0.84.2",
-					"@earendil-works/pi-coding-agent": "0.84.2",
-					"@earendil-works/pi-tui": "0.84.2",
+					"@earendil-works/pi-ai": PI_RUNTIME_CORRECTNESS_REQUIRED_VERSION,
+					"@earendil-works/pi-coding-agent": PI_RUNTIME_CORRECTNESS_REQUIRED_VERSION,
+					"@earendil-works/pi-tui": PI_RUNTIME_CORRECTNESS_REQUIRED_VERSION,
 					"brace-expansion": "5.0.9",
 				},
 				optionalDependencies: appManifest.optionalDependencies,
 				overrides: {
 					"brace-expansion": "5.0.9",
-					"ip-address": "10.5.0",
+					"ip-address": ipAddressVersion,
 				},
 			}),
 		);
@@ -621,7 +631,7 @@ test("package artifact verification rejects a mixed Pi runtime train", () => {
 		assert.notEqual(result.status, 0);
 		assert.match(
 			result.stderr,
-			/@earendil-works\/pi-agent-core must be pinned to Pi 0\.84\.2, found 0\.82\.1/,
+			/@earendil-works\/pi-agent-core must be pinned to Pi 0\.85\.1, found 0\.82\.1/,
 		);
 	} finally {
 		rmSync(packageRoot, { recursive: true, force: true });

@@ -208,21 +208,21 @@ async function loadFastPatchedRunner(
 	}>;
 }
 
-test("Pi 0.84.2 extension timeout patch is exact, idempotent, and fail closed", () => {
-	assert.equal(readPiVersion(), "0.84.2");
+test("Pi 0.85.1 extension timeout patch is exact, idempotent, and fail closed", () => {
+	assert.equal(readPiVersion(), "0.85.1");
 	assert.doesNotThrow(() =>
-		assertPiExtensionHandlerTimeoutVersion("0.84.2", "installed Pi"),
+		assertPiExtensionHandlerTimeoutVersion("0.85.1", "installed Pi"),
 	);
 	assert.throws(
 		() => assertPiExtensionHandlerTimeoutVersion("0.84.3", "future Pi"),
-		/requires Pi 0\.84\.2, found 0\.84\.3/,
+		/requires Pi 0\.85\.1, found 0\.84\.3/,
 	);
 
 	const pristine = restoreOfficialRunnerSource(
 		readFileSync(runnerPath, "utf8"),
 	);
-	const once = patchPiExtensionHandlerTimeoutSource(pristine, "0.84.2");
-	const twice = patchPiExtensionHandlerTimeoutSource(once, "0.84.2");
+	const once = patchPiExtensionHandlerTimeoutSource(pristine, "0.85.1");
+	const twice = patchPiExtensionHandlerTimeoutSource(once, "0.85.1");
 	assert.equal(twice, once);
 	assert.doesNotThrow(() =>
 		assertPiExtensionHandlerTimeoutPatchSource(once, "patched runner"),
@@ -296,7 +296,7 @@ test("Pi 0.84.2 extension timeout patch is exact, idempotent, and fail closed", 
 			/Incomplete drifted runner patch/,
 		);
 		assert.throws(
-			() => patchPiExtensionHandlerTimeoutSource(drifted, "0.84.2"),
+			() => patchPiExtensionHandlerTimeoutSource(drifted, "0.85.1"),
 			/Incomplete Pi extension runner patch/,
 		);
 		assert.throws(
@@ -372,7 +372,7 @@ test("root, vendored, and archived Pi runners accept the same in-memory repair",
 		},
 	];
 	for (const surface of surfaces) {
-		assert.equal(surface.version, "0.84.2", surface.label);
+		assert.equal(surface.version, "0.85.1", surface.label);
 		const patched = patchPiExtensionHandlerTimeoutSource(
 			surface.source,
 			surface.version,

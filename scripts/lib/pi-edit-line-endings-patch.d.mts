@@ -1,4 +1,4 @@
-export declare const PI_EDIT_LINE_ENDINGS_REQUIRED_VERSION: "0.84.2";
+export declare const PI_EDIT_LINE_ENDINGS_REQUIRED_VERSION: "0.85.1";
 export declare const PI_EDIT_LINE_ENDINGS_RUNTIME_TARGETS: readonly string[];
 export declare const PI_EDIT_LINE_ENDINGS_TYPE_TARGETS: readonly string[];
 export declare const PI_EDIT_LINE_ENDINGS_PATCH_TARGETS: readonly string[];

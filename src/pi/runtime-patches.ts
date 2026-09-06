@@ -48,6 +48,7 @@ import { patchPiModelRegistrySource } from "../../scripts/lib/pi-model-registry-
 import { patchPiStateFilePermissionsSource } from "../../scripts/lib/pi-state-file-permissions-patch.mjs";
 import { patchPiBraceExpansionTree } from "../../scripts/lib/pi-shrinkwrap-security-patch.mjs";
 import { patchPiUndiciProxyTree } from "../../scripts/lib/pi-undici-proxy-patch.mjs";
+import { patchPiEsbuildPackageTree } from "../../scripts/lib/pi-esbuild-package-patch.mjs";
 import { patchPiOtelPackageRoot } from "../../scripts/lib/pi-otel-patch.mjs";
 import { PI_SESSION_SEARCH_PATCH_TARGETS, patchPiSessionSearchSource } from "../../scripts/lib/pi-session-search-patch.mjs";
 import { PI_SUBAGENTS_PATCH_TARGETS, patchPiSubagentsSource } from "../../scripts/lib/pi-subagents-patch.mjs";
@@ -320,6 +321,14 @@ export function patchPiRuntimeNodeModules(
 	const safeBraceExpansionPath = resolve(appRoot, "node_modules", "brace-expansion");
 	for (const nodeModulesPath of nodeModuleRoots) {
 		changed = patchPiBraceExpansionTree(nodeModulesPath, safeBraceExpansionPath) || changed;
+		// Portable compiler packaging belongs only to Feynman's owned trees.
+		// User/global Pi installs retain upstream's working platform layout.
+		if (nodeModuleRoots.indexOf(nodeModulesPath) < 2) {
+			changed = patchPiEsbuildPackageTree(
+				nodeModulesPath, resolve(appRoot, "node_modules", "esbuild"),
+				{ runtime: nodeModulesPath !== resolve(appRoot, "node_modules") },
+			) || changed;
+		}
 		changed = patchPiUndiciProxyTree(
 			nodeModulesPath,
 			resolve(appRoot, "node_modules", "undici"),
@@ -553,20 +562,20 @@ export function patchPiRuntimeNodeModules(
 			patchMcpSdkPackageJsonSource,
 		) || changed;
 		changed = patchFileIfPresent(
-			resolve(nodeModulesPath, "@companion-ai", "alpha-hub", "node_modules", "@modelcontextprotocol", "sdk", "package.json"),
+			resolve(nodeModulesPath, "@advaitpaliwal", "alpha-hub", "node_modules", "@modelcontextprotocol", "sdk", "package.json"),
 			patchMcpSdkPackageJsonSource,
 		) || changed;
 		changed = patchFileIfPresent(
-			resolve(nodeModulesPath, "@companion-ai", "alpha-hub", "src", "lib", "auth.js"),
-			patchAlphaHubAuthSource,
+			resolve(nodeModulesPath, "@advaitpaliwal", "alpha-hub", "src", "lib", "auth.js"),
+			(source) => patchAlphaHubAuthSource(source, { version: "0.1.4" }),
 		) || changed;
 		changed = patchFileIfPresent(
-			resolve(nodeModulesPath, "@companion-ai", "alpha-hub", "src", "lib", "alphaxiv.js"),
-			patchAlphaHubSearchSource,
+			resolve(nodeModulesPath, "@advaitpaliwal", "alpha-hub", "src", "lib", "alphaxiv.js"),
+			(source) => patchAlphaHubSearchSource(source, { version: "0.1.4" }),
 		) || changed;
 		changed = patchFileIfPresent(
-			resolve(nodeModulesPath, "@companion-ai", "alpha-hub", "src", "lib", "index.js"),
-			patchAlphaHubSearchResultsSource,
+			resolve(nodeModulesPath, "@advaitpaliwal", "alpha-hub", "src", "lib", "index.js"),
+			(source) => patchAlphaHubSearchResultsSource(source, { version: "0.1.4" }),
 		) || changed;
 		changed = patchPiWebAccessPackageFiles(nodeModulesPath, appRoot) || changed;
 		changed = patchPiDocparserPackageFiles(nodeModulesPath) || changed;

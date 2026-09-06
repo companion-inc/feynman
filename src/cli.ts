@@ -18,8 +18,8 @@ import {
 	getUserName as getAlphaUserName,
 	login as loginAlpha,
 	logout as logoutAlpha,
-} from "@companion-ai/alpha-hub/lib";
-import { getValidToken as getValidAlphaToken } from "@companion-ai/alpha-hub/lib/auth";
+} from "@advaitpaliwal/alpha-hub/lib";
+import { getValidToken as getValidAlphaToken } from "@advaitpaliwal/alpha-hub/lib/auth";
 import { createAgentSession, SessionManager, SettingsManager, type AgentSessionEvent } from "@earendil-works/pi-coding-agent";
 import { contentText, type AssistantMessage } from "@earendil-works/pi-ai";
 
@@ -109,7 +109,7 @@ import {
 } from "../metadata/commands.mjs";
 
 const TOP_LEVEL_COMMANDS = new Set(topLevelCommandNames);
-const ALPHA_HUB_PACKAGE_PATH = ["@companion-ai", "alpha-hub"] as const;
+const ALPHA_HUB_PACKAGE_PATH = ["@advaitpaliwal", "alpha-hub"] as const;
 
 function printHelpLine(usage: string, description: string): void {
 	const width = 30;
@@ -159,7 +159,7 @@ export function resolveBundledAlphaCliPath(appRoot: string): string {
 	let resolvedPackageAlpha: string | undefined;
 	try {
 		const requireFromApp = createRequire(resolve(appRoot, "package.json"));
-		const packageEntryPath = requireFromApp.resolve("@companion-ai/alpha-hub");
+		const packageEntryPath = requireFromApp.resolve("@advaitpaliwal/alpha-hub");
 		resolvedPackageAlpha = resolve(dirname(packageEntryPath), "..", "bin", "alpha");
 	} catch {
 		resolvedPackageAlpha = undefined;

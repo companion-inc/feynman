@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
 import { PI_SUBAGENTS_PATCH_TARGETS, patchPiSubagentsSource, stripPiSubagentBuiltinModelSource } from "../scripts/lib/pi-subagents-patch.mjs";
@@ -9,6 +9,29 @@ import {
 	assertPiSubagentUsageLimitFallbackSource,
 	verifyPiSubagentUsageLimitFallbackBehavior,
 } from "../scripts/lib/pi-subagents-verification.mjs";
+
+// Frozen 0.40-era minimal prompt surface: do not derive legacy tests from installed latest.
+const LEGACY_TOOL_DESCRIPTION_SOURCE = [
+	'import type { ExtensionConfig, ToolDescriptionMode } from "../shared/types.ts";',
+	'const CUSTOM_TOOL_DESCRIPTION_FILE = "subagent-tool-description.md";',
+	"const CUSTOM_TOOL_DESCRIPTION_MAX_BYTES = 50 * 1024;",
+	"export const FULL_SUBAGENT_TOOL_DESCRIPTION = `full`;",
+	"export const COMPACT_SUBAGENT_TOOL_DESCRIPTION = `compact`;",
+	"export interface ToolDescriptionOptions {",
+	"\tcwd?: string;",
+	"\tagentDir?: string;",
+	"\twarn?: (message: string) => void;",
+	"}",
+	"",
+	'export function resolveToolDescriptionMode(config: Pick<ExtensionConfig, "toolDescriptionMode">, options?: ToolDescriptionOptions): ToolDescriptionMode {',
+	'\treturn config.toolDescriptionMode ?? "full";',
+	"}",
+	"",
+	'export function buildSubagentToolDescription(config: Pick<ExtensionConfig, "toolDescriptionMode"> = {}, options?: ToolDescriptionOptions): string {',
+	"\tconst mode = resolveToolDescriptionMode(config, options);",
+	'\treturn mode === "compact" ? COMPACT_SUBAGENT_TOOL_DESCRIPTION : FULL_SUBAGENT_TOOL_DESCRIPTION;',
+	"}",
+].join("\n");
 
 function assertUserDirLoadsHaveDeclaration(source: string): void {
 	for (const chunk of source.split(/\n(?=export function |function )/)) {
@@ -227,7 +250,7 @@ test("patchPiSubagentsSource keeps parent-model metadata out of fork model resol
 });
 
 test("current pi-subagents identity patches are exact idempotent fixed points", () => {
-	const appRoot = resolve(import.meta.dirname, "..");
+	const appRoot = process.env.FEYNMAN_SUBAGENTS_TEST_APP_ROOT ?? resolve(import.meta.dirname, "..");
 	const subagentsRoot = resolve(
 		appRoot,
 		".feynman",
@@ -246,6 +269,11 @@ test("current pi-subagents identity patches are exact idempotent fixed points", 
 		"src/runs/shared/parallel-utils.ts",
 		"src/shared/types.ts",
 	]) {
+		// 0.65 routes sequential orchestration through workflows, not chain-execution.ts.
+		if (relativePath.endsWith("/chain-execution.ts") && !existsSync(resolve(subagentsRoot, relativePath))) {
+			assert.equal(JSON.parse(readFileSync(resolve(subagentsRoot, "package.json"), "utf8")).version, "0.65.1");
+			continue;
+		}
 		const source = readFileSync(resolve(subagentsRoot, relativePath), "utf8");
 		const patched = patchPiSubagentsSource(relativePath, source);
 		assert.equal(
@@ -264,7 +292,7 @@ test("current pi-subagents identity patches are exact idempotent fixed points", 
 });
 
 test("patched installed pi-subagents carries model identity, context overflow, backfilled tool completion, and logical failures end to end", async () => {
-	const appRoot = resolve(import.meta.dirname, "..");
+	const appRoot = process.env.FEYNMAN_SUBAGENTS_TEST_APP_ROOT ?? resolve(import.meta.dirname, "..");
 	const subagentsRoot = resolve(
 		appRoot,
 		".feynman",
@@ -337,27 +365,7 @@ test("patchPiSubagentsSource rewrites current src paths", () => {
 });
 
 test("patchPiSubagentsSource registers split prompt metadata by default", () => {
-	const toolDescription = [
-		'import type { ExtensionConfig, ToolDescriptionMode } from "../shared/types.ts";',
-		'const CUSTOM_TOOL_DESCRIPTION_FILE = "subagent-tool-description.md";',
-		"const CUSTOM_TOOL_DESCRIPTION_MAX_BYTES = 50 * 1024;",
-		"export const FULL_SUBAGENT_TOOL_DESCRIPTION = `full`;",
-		"export const COMPACT_SUBAGENT_TOOL_DESCRIPTION = `compact`;",
-		"export interface ToolDescriptionOptions {",
-		"\tcwd?: string;",
-		"\tagentDir?: string;",
-		"\twarn?: (message: string) => void;",
-		"}",
-		"",
-		'export function resolveToolDescriptionMode(config: Pick<ExtensionConfig, "toolDescriptionMode">, options?: ToolDescriptionOptions): ToolDescriptionMode {',
-		'\treturn config.toolDescriptionMode ?? "full";',
-		"}",
-		"",
-		'export function buildSubagentToolDescription(config: Pick<ExtensionConfig, "toolDescriptionMode"> = {}, options?: ToolDescriptionOptions): string {',
-		"\tconst mode = resolveToolDescriptionMode(config, options);",
-		'\treturn mode === "compact" ? COMPACT_SUBAGENT_TOOL_DESCRIPTION : FULL_SUBAGENT_TOOL_DESCRIPTION;',
-		"}",
-	].join("\n");
+	const toolDescription = LEGACY_TOOL_DESCRIPTION_SOURCE;
 	const extensionIndex = [
 		'import { buildSubagentToolDescription } from "./tool-description.ts";',
 		"const tool = {",
@@ -440,19 +448,7 @@ test("patchPiSubagentsSource upgrades v1 prompt metadata with approved model gui
 	const guidance =
 		"When a child needs an explicit model, run `feynman model list` first and copy an exact approved provider/model. Never pass a bare model id or an agent name as the model.";
 	const descriptionGuidance = guidance.replaceAll("`", "\\`");
-	const currentRuntime = readFileSync(
-		resolve(
-			process.cwd(),
-			".feynman",
-			"npm",
-			"node_modules",
-			"pi-subagents",
-			"src",
-			"extension",
-			"tool-description.ts",
-		),
-		"utf8",
-	).replace(
+	const currentRuntime = patchPiSubagentsSource("src/extension/tool-description.ts", LEGACY_TOOL_DESCRIPTION_SOURCE).replace(
 		"feynman-pi-subagents-prompt-metadata-v2",
 		"feynman-pi-subagents-prompt-metadata-v1",
 	).replace(

@@ -41,6 +41,7 @@ import { patchPiModelRegistrySource } from "./lib/pi-model-registry-patch.mjs";
 import { PI_BTW_MODEL_RUNTIME_PATCH_TARGETS, PI_BTW_MODEL_RUNTIME_REQUIRED_VERSION, patchPiBtwModelRuntimeSource } from "./lib/pi-btw-model-runtime-patch.mjs";
 import { patchPiStateFilePermissionsSource } from "./lib/pi-state-file-permissions-patch.mjs";
 import { patchPiUndiciProxyTree } from "./lib/pi-undici-proxy-patch.mjs";
+import { patchPiEsbuildPackageTree } from "./lib/pi-esbuild-package-patch.mjs";
 import { patchPiBraceExpansionTree } from "./lib/pi-shrinkwrap-security-patch.mjs";
 import {
 	patchPiEditorSource,
@@ -975,24 +976,19 @@ for (const entryPath of [modelRegistryPath, modelRuntimePath, workspaceModelRegi
 }
 
 const safeBraceExpansionPath = resolve(appRoot, "node_modules", "brace-expansion");
-patchPiBraceExpansionTree(resolve(appRoot, "node_modules"), safeBraceExpansionPath);
-patchPiBraceExpansionTree(workspaceRoot, safeBraceExpansionPath);
 const feynmanUndiciPath = resolve(appRoot, "node_modules", "undici");
-patchPiUndiciProxyTree(
-	resolve(appRoot, "node_modules"),
-	feynmanUndiciPath,
-	PI_RUNTIME_CORRECTNESS_REQUIRED_VERSION,
-);
-patchPiUndiciProxyTree(
-	workspaceRoot,
-	feynmanUndiciPath,
-	PI_RUNTIME_CORRECTNESS_REQUIRED_VERSION,
-);
+for (const modules of [resolve(appRoot, "node_modules"), workspaceRoot]) {
+	patchPiBraceExpansionTree(modules, safeBraceExpansionPath);
+	patchPiEsbuildPackageTree(
+		modules, resolve(appRoot, "node_modules", "esbuild"), { runtime: modules === workspaceRoot },
+	);
+	patchPiUndiciProxyTree(modules, feynmanUndiciPath, PI_RUNTIME_CORRECTNESS_REQUIRED_VERSION);
+}
 for (const nodeModulesRoot of [
 	resolve(appRoot, "node_modules"),
-	resolve(appRoot, "node_modules", "@companion-ai", "alpha-hub", "node_modules"),
+	resolve(appRoot, "node_modules", "@advaitpaliwal", "alpha-hub", "node_modules"),
 	workspaceRoot,
-	resolve(workspaceRoot, "@companion-ai", "alpha-hub", "node_modules"),
+	resolve(workspaceRoot, "@advaitpaliwal", "alpha-hub", "node_modules"),
 ]) {
 	patchMcpSdkManifest(nodeModulesRoot);
 }
@@ -1126,33 +1122,33 @@ if (oauthPagePath && existsSync(oauthPagePath)) {
 	if (changed) writeFileSync(oauthPagePath, source, "utf8");
 }
 
-const alphaHubAuthPath = findPackageRoot("@companion-ai/alpha-hub")
-	? resolve(findPackageRoot("@companion-ai/alpha-hub"), "src", "lib", "auth.js")
+const alphaHubAuthPath = findPackageRoot("@advaitpaliwal/alpha-hub")
+	? resolve(findPackageRoot("@advaitpaliwal/alpha-hub"), "src", "lib", "auth.js")
 	: null;
-const alphaHubSearchPath = findPackageRoot("@companion-ai/alpha-hub")
-	? resolve(findPackageRoot("@companion-ai/alpha-hub"), "src", "lib", "alphaxiv.js")
+const alphaHubSearchPath = findPackageRoot("@advaitpaliwal/alpha-hub")
+	? resolve(findPackageRoot("@advaitpaliwal/alpha-hub"), "src", "lib", "alphaxiv.js")
 	: null;
-const alphaHubIndexPath = findPackageRoot("@companion-ai/alpha-hub")
-	? resolve(findPackageRoot("@companion-ai/alpha-hub"), "src", "lib", "index.js")
+const alphaHubIndexPath = findPackageRoot("@advaitpaliwal/alpha-hub")
+	? resolve(findPackageRoot("@advaitpaliwal/alpha-hub"), "src", "lib", "index.js")
 	: null;
 
 if (alphaHubAuthPath && existsSync(alphaHubAuthPath)) {
 	const source = readFileSync(alphaHubAuthPath, "utf8");
-	const patched = patchAlphaHubAuthSource(source);
+	const patched = patchAlphaHubAuthSource(source, { version: "0.1.4" });
 	if (patched !== source) {
 		writeFileSync(alphaHubAuthPath, patched, "utf8");
 	}
 }
 if (alphaHubSearchPath && existsSync(alphaHubSearchPath)) {
 	const source = readFileSync(alphaHubSearchPath, "utf8");
-	const patched = patchAlphaHubSearchSource(source);
+	const patched = patchAlphaHubSearchSource(source, { version: "0.1.4" });
 	if (patched !== source) {
 		writeFileSync(alphaHubSearchPath, patched, "utf8");
 	}
 }
 if (alphaHubIndexPath && existsSync(alphaHubIndexPath)) {
 	const source = readFileSync(alphaHubIndexPath, "utf8");
-	const patched = patchAlphaHubSearchResultsSource(source);
+	const patched = patchAlphaHubSearchResultsSource(source, { version: "0.1.4" });
 	if (patched !== source) {
 		writeFileSync(alphaHubIndexPath, patched, "utf8");
 	}
@@ -1160,7 +1156,7 @@ if (alphaHubIndexPath && existsSync(alphaHubIndexPath)) {
 
 // The bundled workspace carries its own alpha-hub copy; patch it the same way
 // so search fixes apply regardless of which copy resolves at runtime.
-const workspaceAlphaHubLib = resolve(workspaceRoot, "@companion-ai", "alpha-hub", "src", "lib");
+const workspaceAlphaHubLib = resolve(workspaceRoot, "@advaitpaliwal", "alpha-hub", "src", "lib");
 for (const [fileName, patchFn] of [
 	["auth.js", patchAlphaHubAuthSource],
 	["alphaxiv.js", patchAlphaHubSearchSource],

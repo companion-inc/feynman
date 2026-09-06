@@ -1,3 +1,70 @@
+import { createHash } from "node:crypto";
+
+// Exact npm 0.1.4 bytes from published source 9ec42ba0d499284552220315247b3f2a811e6607.
+export const ALPHA_HUB_SEARCH_014_SOURCE_CONTRACT = Object.freeze({
+	version: "0.1.4",
+	upstreamSha256: "ada374a4e10e9598c82aa8a41d6779750e8ba0fadb6dec59c6fae39213389af9",
+	patchedSha256: "292579714f8df4430e8571525155d4a51aac2881dbe41c3ebd24664d26c3b624",
+});
+export const ALPHA_HUB_RESULTS_014_SOURCE_CONTRACT = Object.freeze({
+	version: "0.1.4",
+	upstreamSha256: "7dff123a75917d68a846e8bcc6b43df9af8ecfbc70b32882e4238a511a87dd3e",
+	patchedSha256: "7dff123a75917d68a846e8bcc6b43df9af8ecfbc70b32882e4238a511a87dd3e",
+});
+const LEGACY_SEARCH_SHA256 = "e1085ab6786926694750b009aca9508fe434f5c2c64eec365dd6ed95fedc8aa1";
+const LEGACY_SEARCH_PATCHED_SHA256 = "404eab4a6e43d59e550658eeac897fa49330b251ee7d8e6678748a73bd7b9dc4";
+const LEGACY_RESULTS_SHA256 = "59ef5ca7474c8a27f0cf0276502bad847d113180a4002a5cf2230126e82bb574";
+const LEGACY_RESULTS_PATCHED_SHA256 = "b92f15171022b2babc40112c1acb4a4b40ed4e3ac8d29bdb76825b7561f1b3f1";
+const sourceDigest = (source) => createHash("sha256").update(source).digest("hex");
+
+export function assertAlphaHubSearchSource(source) {
+	if (sourceDigest(source) !== ALPHA_HUB_SEARCH_014_SOURCE_CONTRACT.patchedSha256) {
+		throw new Error("Unsupported alpha-hub 0.1.4 patched search source");
+	}
+}
+
+export function assertAlphaHubSearchResultsSource(source) {
+	if (sourceDigest(source) !== ALPHA_HUB_RESULTS_014_SOURCE_CONTRACT.patchedSha256) {
+		throw new Error("Unsupported alpha-hub 0.1.4 results source");
+	}
+}
+
+function validateVersion(options) {
+	if (options.version !== undefined && options.version !== "0.1.3" && options.version !== "0.1.4") {
+		throw new Error(`Unsupported alpha-hub search version: ${options.version}`);
+	}
+}
+
+const PERSONAL_DISCOVERY = `async function discoverPapers(query, difficulty) {
+  return await callTool('discover_papers', discoverArgs(query, difficulty));
+}`;
+const PERSONAL_DISCOVERY_WITH_FALLBACK = `async function discoverPapers(query, difficulty) {
+  // Feynman: retain REST continuity only when the current discovery tool is absent.
+  // Validate first; do not hide bad arguments, auth failures, or transport errors.
+  const args = discoverArgs(query, difficulty);
+  try {
+    return await callTool('discover_papers', args);
+  } catch (err) {
+    if (!/\\bTool discover_papers not found\\b/i.test(getErrorMessage(err))) throw err;
+    return await searchRestFast(args.question);
+  }
+}
+
+async function searchRestFast(query) {
+  const url = new URL('https://api.alphaxiv.org/search/v2/paper/fast');
+  url.searchParams.set('q', query);
+  url.searchParams.set('includePrivate', 'false');
+  const token = await getValidToken();
+  const response = await fetch(url, {
+    headers: token ? { Authorization: \`Bearer \${token}\` } : undefined,
+  });
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(\`alphaXiv REST search failed (\${response.status}): \${text || response.statusText}\`);
+  }
+  return await response.json();
+}`;
+
 const SEARCH_BY_EMBEDDING = [
 	"export async function searchByEmbedding(query) {",
 	"  return await callTool('embedding_similarity_search', { query });",
@@ -169,7 +236,21 @@ const PATCHED_AGENTIC_SEARCH = [
 	"}",
 ].join("\n");
 
-export function patchAlphaHubSearchSource(source) {
+export function patchAlphaHubSearchSource(source, options = {}) {
+	validateVersion(options);
+	const digest = sourceDigest(source);
+	const contract = ALPHA_HUB_SEARCH_014_SOURCE_CONTRACT;
+	if (digest === contract.patchedSha256) return source;
+	if (digest === contract.upstreamSha256) {
+		const patched = source.replace(PERSONAL_DISCOVERY, PERSONAL_DISCOVERY_WITH_FALLBACK);
+		assertAlphaHubSearchSource(patched);
+		return patched;
+	}
+	if (options.version === contract.version) throw new Error("Unsupported alpha-hub 0.1.4 search source");
+	if ((/\bimport\s/.test(source) || source.includes("function discoverArgs(")) &&
+		digest !== LEGACY_SEARCH_SHA256 && digest !== LEGACY_SEARCH_PATCHED_SHA256) {
+		throw new Error("Unsupported alpha-hub search source");
+	}
 	let patched = source;
 	if (!patched.includes("async function searchRestFast(")) {
 		const hasSearchFunctions =
@@ -261,7 +342,15 @@ const PARSE_GUARD_PATCHED = [
 	"  }",
 ].join("\n");
 
-export function patchAlphaHubSearchResultsSource(source) {
+export function patchAlphaHubSearchResultsSource(source, options = {}) {
+	validateVersion(options);
+	const digest = sourceDigest(source);
+	if (digest === ALPHA_HUB_RESULTS_014_SOURCE_CONTRACT.upstreamSha256) return source;
+	if (options.version === "0.1.4") throw new Error("Unsupported alpha-hub 0.1.4 results source");
+	if ((/\bimport\s/.test(source) || source.includes("const newFormatLine =")) &&
+		digest !== LEGACY_RESULTS_SHA256 && digest !== LEGACY_RESULTS_PATCHED_SHA256) {
+		throw new Error("Unsupported alpha-hub results source");
+	}
 	if (source.includes("function parseStructuredSearchResults(")) {
 		return source;
 	}

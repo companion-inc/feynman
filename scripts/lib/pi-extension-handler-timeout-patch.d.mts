@@ -1,4 +1,4 @@
-export declare const PI_EXTENSION_HANDLER_TIMEOUT_REQUIRED_VERSION: "0.84.2";
+export declare const PI_EXTENSION_HANDLER_TIMEOUT_REQUIRED_VERSION: "0.85.1";
 export declare const PI_EXTENSION_HANDLER_TIMEOUT_TARGET: "dist/core/extensions/runner.js";
 export declare const PI_EXTENSION_HANDLER_TIMEOUT_MARKER: string;
 export declare function assertPiExtensionHandlerTimeoutVersion(

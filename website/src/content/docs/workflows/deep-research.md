@@ -29,6 +29,8 @@ The deep research workflow proceeds through five phases. First, Feynman creates 
 
 Second, after approval, Feynman chooses the execution scale. Narrow "what is X" explainers usually run as direct lead-owned research with multiple search terms. Broader surveys can dispatch researcher agents in parallel to search academic papers, web sources, and code repositories.
 
+Parallel evidence gathering uses one async `workflowScript` with `runs.all` and a concurrency limit of four. Each child reads its task brief from disk and declares an output file. Feynman checks the ordered completion results and actual returned artifact paths before synthesis, recording failed or missing evidence in the task ledger and provenance. Citation verification completes before the reviewer starts; neither an async launch receipt nor an intended filename proves that step finished.
+
 Third, Feynman reads and extracts key findings from the most relevant sources. It pulls claims, methodology details, results, and limitations from each paper or article. PDF extraction is avoided unless explicitly requested; metadata, abstracts, HTML pages, and official docs are preferred when PDF parsing is brittle.
 
 Fourth, a synthesis step cross-references findings across sources, identifies areas of consensus and disagreement, and organizes the material into a coherent narrative. The output is written as a research brief with sections for background, key findings, open questions, and references.

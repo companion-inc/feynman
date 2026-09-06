@@ -6,7 +6,9 @@ import {
 	readFileSync,
 	rmSync,
 	writeFileSync,
+	symlinkSync,
 } from "node:fs";
+import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 
@@ -43,7 +45,7 @@ test("Pi 0.84.2 abort queue patch is exact, idempotent, drift-closed, and runtim
 	const packageJson = JSON.parse(
 		readFileSync(resolve(agentCoreRoot, "package.json"), "utf8"),
 	) as { version?: string };
-	assert.equal(packageJson.version, "0.84.2");
+	assert.equal(packageJson.version, "0.85.1");
 
 	const patchSource = readFileSync(
 		resolve(appRoot, "scripts", "lib", "pi-agent-core-patch.mjs"),
@@ -63,7 +65,7 @@ test("Pi 0.84.2 abort queue patch is exact, idempotent, drift-closed, and runtim
 	);
 	assert.match(
 		runtimeCorrectnessSource,
-		/export const PI_RUNTIME_CORRECTNESS_REQUIRED_VERSION = "0\.84\.2";/,
+		/export const PI_RUNTIME_CORRECTNESS_REQUIRED_VERSION = "0\.85\.1";/,
 	);
 	assert.match(
 		runtimePatchSource,
@@ -80,7 +82,7 @@ test("Pi 0.84.2 abort queue patch is exact, idempotent, drift-closed, and runtim
 	assert.match(once, new RegExp(abortGuardMarker.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
 	assert.match(
 		once,
-		/await emit\(\{ type: "turn_end", message, toolResults \}\);[\s\S]*if \(signal\?\.aborted\) \{[\s\S]*await emit\(\{ type: "agent_end", messages: newMessages \}\);[\s\S]*return;[\s\S]*const nextTurnContext = \{/,
+		/await emit\(\{ type: "turn_end", message, toolResults \}\);[\s\S]*if \(signal\?\.aborted\) \{[\s\S]*await emit\(\{ type: "agent_end", messages: newMessages \}\);[\s\S]*return;[\s\S]*lastCompletedTurn = \{/,
 	);
 	assert.doesNotThrow(() =>
 		assertPiAgentCorePatchSource(once, "patched Pi 0.84.2 AgentCore")
@@ -107,8 +109,10 @@ test("Pi 0.84.2 abort queue patch is exact, idempotent, drift-closed, and runtim
 });
 
 async function loadPatchedAgentCore(t: TestContext) {
-	const tempRoot = mkdtempSync(join(resolve(appRoot, "node_modules"), ".feynman-pi-abort-"));
+	const tempRoot = mkdtempSync(join(tmpdir(), "feynman-pi-abort-"));
 	t.after(() => rmSync(tempRoot, { recursive: true, force: true }));
+	symlinkSync(resolve(appRoot, "node_modules"),
+		resolve(tempRoot, "node_modules"), "dir");
 	const packageRoot = resolve(tempRoot, "pi-agent-core");
 	cpSync(agentCoreRoot, packageRoot, { recursive: true });
 	const copiedAgentLoopPath = resolve(packageRoot, "dist", "agent-loop.js");

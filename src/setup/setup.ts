@@ -1,4 +1,4 @@
-import { isLoggedIn as isAlphaLoggedIn, login as loginAlpha } from "@companion-ai/alpha-hub/lib";
+import { isLoggedIn as isAlphaLoggedIn, login as loginAlpha } from "@advaitpaliwal/alpha-hub/lib";
 import { dirname } from "node:path";
 
 import { getPiWebAccessStatus } from "../pi/web-access.js";

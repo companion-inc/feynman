@@ -10,7 +10,7 @@ import {
 } from "node:fs";
 import { dirname, relative, resolve } from "node:path";
 
-export const PI_CLI_ARGS_REQUIRED_VERSION = "0.84.2";
+export const PI_CLI_ARGS_REQUIRED_VERSION = "0.85.1";
 export const PI_CLI_ARGS_UPSTREAM_FIX =
 	"https://github.com/earendil-works/pi/commit/74786a748f5314cc2127ebbcfa2d732e9b8433f5";
 export const PI_CLI_ARGS_UPSTREAM_DOCS =
@@ -290,6 +290,14 @@ export function patchPiCliArgsSource(source) {
 	if (source.includes(PATCH_MARKER)) {
 		assertPiCliArgsPatchSource(source);
 		return source;
+	}
+	// 0.85.1 ships the identical delimiter branch. Annotate, then apply the
+	// same executable-range/count validator instead of inserting it twice.
+	const upstreamBranch = PATCH_BRANCH.replace(`${PATCH_MARKER}\n`, "");
+	if (source.includes(upstreamBranch)) {
+		const patched = source.replace(upstreamBranch, PATCH_BRANCH);
+		assertPiCliArgsPatchSource(patched);
+		return patched;
 	}
 
 	requireCount(source, UNPATCHED_ANCHOR, 1, "unpatched help branch");

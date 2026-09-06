@@ -494,7 +494,7 @@ test("patched Xiaomi and China ZAI catalogs expose only current provider models"
 		assert.equal(providers.getBuiltinModel("zai-coding-cn", id).id, id);
 	}
 	for (const id of ["zai-org/GLM-5.2", "zai-org/GLM-5.2-Fast"]) {
-		assert.deepEqual(providers.getBuiltinModel("baseten", id).input, ["text", "image"]);
+		assert.deepEqual(providers.getBuiltinModel("baseten", id).input, ["text"]);
 	}
 });
 

@@ -53,11 +53,14 @@ test("vendored runtime uses a committed exact dependency lock", () => {
 	);
 	for (const packageName of [
 		"@earendil-works/pi-agent-core",
+		"@earendil-works/pi-client",
+		"@earendil-works/pi-server",
 		"@earendil-works/pi-ai",
 		"@earendil-works/pi-coding-agent",
 		"@earendil-works/pi-telemetry",
 		"@earendil-works/pi-tui",
 		"brace-expansion",
+		"esbuild",
 		"typebox",
 		"undici",
 	]) {
@@ -70,7 +73,7 @@ test("vendored runtime uses a committed exact dependency lock", () => {
 	assert.deepEqual(runtimeLock.packages[""].dependencies, expected);
 	assert.equal(
 		runtimeLock.packages["node_modules/@hono/node-server"]?.version,
-		"2.0.12",
+		"2.1.1",
 	);
 	assert.deepEqual(
 		{
@@ -86,11 +89,11 @@ test("vendored runtime uses a committed exact dependency lock", () => {
 			hono: runtimeLock.packages["node_modules/hono"]?.version,
 		},
 		{
-			piTelemetry: "0.84.2",
-			nodeTypes: "26.2.0",
-			fastUri: "3.1.6",
+			piTelemetry: "0.85.1",
+			nodeTypes: "26.4.1",
+			fastUri: "3.1.7",
 			qs: "6.16.0",
-			hono: "4.13.3",
+			hono: "4.13.7",
 		},
 	);
 	assert.deepEqual(
@@ -110,16 +113,16 @@ test("vendored runtime uses a committed exact dependency lock", () => {
 			)?.integrity,
 		},
 		{
-			version: "2.14.0",
+			version: "2.14.3",
 			resolved:
-				"https://registry.npmjs.org/@llamaindex/liteparse/-/liteparse-2.14.0.tgz",
+				"https://registry.npmjs.org/@llamaindex/liteparse/-/liteparse-2.14.3.tgz",
 			integrity:
-				"sha512-lIFBbTRs87Bpp45Lm986hUDEPndm85pT9l/BM1dtWhQs0zTLEkpHLrgbOxGG2rjBqDgJM5fdChT8LWUd4ZThWA==",
+				"sha512-6gf70TDkNcu2lsYS5RAz+jl3lpwHKf8ppXyUb1PAFAF8BVW8Zg71ncvrkLMh3CYXF16kGO7p1Scymzpvmht0IQ==",
 		},
 	);
 	assert.equal(
 		runtimeLock.packages["node_modules/undici"]?.version,
-		"8.10.0",
+		"8.10.2",
 	);
 	for (const [packagePath, entry] of Object.entries(
 		runtimeLock.packages,
@@ -134,7 +137,7 @@ test("vendored runtime uses a committed exact dependency lock", () => {
 		if (
 			packagePath.endsWith("/pi-coding-agent/node_modules/undici")
 		) {
-			assert.equal(entry.version, "8.10.0");
+			assert.equal(entry.version, "8.10.2");
 		}
 	}
 });

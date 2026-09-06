@@ -1,10 +1,10 @@
-const SAFE_HONO_NODE_SERVER_VERSION = "2.0.12";
+const SAFE_HONO_NODE_SERVER_VERSION = "2.1.1";
 
 /**
  * MCP SDK 1.30.0 allows the security-fixed @hono/node-server v2 line, but also
- * retains the vulnerable v1 line for compatibility. Feynman bundles this
+ * permits older transitive resolutions for compatibility. Feynman bundles this
  * dependency tree, so pin the exact tested v2 release in the shipped manifest.
- * Remove this patch once MCP no longer permits the vulnerable v1 range.
+ * Keep the reviewed adapter identity aligned with the root/runtime override.
  */
 export function patchMcpSdkPackageJsonSource(source) {
 	const manifest = JSON.parse(source);
@@ -20,6 +20,7 @@ export function patchMcpSdkPackageJsonSource(source) {
 		throw new Error("@modelcontextprotocol/sdk package.json has no @hono/node-server dependency");
 	}
 	const knownUnsafeRange =
+		current === "2.0.12" ||
 		current === "^1.19.9" ||
 		current === "^1.19.9 || ^2.0.5" ||
 		(() => {

@@ -6,7 +6,7 @@ import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
-
+import { verifyInstalledEsbuild } from "./verify-installed-esbuild.mjs";
 import {
 	createAgentSession,
 	DefaultResourceLoader,
@@ -905,6 +905,7 @@ export async function verifyGithubCopilotRateLimitLogin() {
 	let maxActivePolicyRequests = 0;
 	let policyRequestCount = 0;
 	let modelsRequestCount = 0;
+	const policyIds = Object.values(JSON.parse(readFileSync(resolve(packageRoot, "node_modules/@earendil-works/pi-ai/dist/providers/data/github-copilot.json"), "utf8"))).flatMap(group => Object.keys(group)).slice(0, 2);
 	globalThis.fetch = async (input) => {
 		const url = typeof input === "string" || input instanceof URL
 			? String(input)
@@ -944,12 +945,11 @@ export async function verifyGithubCopilotRateLimitLogin() {
 				});
 			}
 			return Response.json({
-				data: [{ id: "gpt-5.4", model_picker_enabled: true }],
+				data: policyIds.map(id => ({ id, model_picker_enabled: true, policy: { state: "unconfigured" } })),
 			});
 		}
 		throw new Error(`Unexpected GitHub Copilot request: ${url}`);
 	};
-
 	try {
 		const copilotModule = await import(
 			`${pathToFileURL(copilotModulePath).href}?installed-verifier=${Date.now()}`
@@ -959,14 +959,14 @@ export async function verifyGithubCopilotRateLimitLogin() {
 			notify: () => {},
 			signal: new AbortController().signal,
 		});
-		assert.ok(policyRequestCount > 1, "Copilot login did not enable model policies");
+		assert.equal(policyRequestCount, 2, "Copilot login did not enable the two requested model policies");
 		assert.equal(
 			maxActivePolicyRequests,
 			1,
 			"Copilot login sent concurrent policy requests",
 		);
 		assert.equal(modelsRequestCount, 2, "Copilot model discovery did not retry exactly once");
-		assert.deepEqual(credentials.availableModelIds, ["gpt-5.4"]);
+		assert.deepEqual(credentials.availableModelIds, policyIds);
 	} finally {
 		globalThis.fetch = originalFetch;
 	}
@@ -1186,6 +1186,7 @@ async function main() {
 		cliEndOfOptions: "passed",
 		editLineEndings,
 		stateFilePermissions,
+		esbuild: verifyInstalledEsbuild(packageRoot),
 	}));
 }
 

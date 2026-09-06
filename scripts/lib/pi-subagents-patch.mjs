@@ -1,6 +1,7 @@
 import { patchPiSubagentAgentDiagnostics } from "./pi-subagents-agent-diagnostics-patch.mjs";
 import { patchPiSubagentsCorrectness } from "./pi-subagents-correctness-patch.mjs";
 import { patchPiSubagentPromptMetadata } from "./pi-subagents-prompt-metadata-patch.mjs";
+import { PI_SUBAGENTS_NATIVE_EXTRA_TARGETS, patchPiSubagentsNativeSource } from "./pi-subagents-native-patch.mjs";
 
 export const PI_SUBAGENTS_PATCH_TARGETS = [
 	"index.ts",
@@ -39,6 +40,7 @@ export const PI_SUBAGENTS_PATCH_TARGETS = [
 	"src/extension/fanout-child.ts",
 	"src/runs/background/wait-tool.ts",
 	"src/extension/schemas.ts",
+	...PI_SUBAGENTS_NATIVE_EXTRA_TARGETS,
 ];
 
 const RESOLVE_PI_AGENT_DIR_HELPER = [
@@ -292,6 +294,8 @@ export function stripPiSubagentBuiltinModelSource(source) {
 }
 
 export function patchPiSubagentsSource(relativePath, source) {
+	const native = patchPiSubagentsNativeSource(relativePath, source);
+	if (native !== undefined) return native;
 	const target = relativePath.split("/").pop();
 	let patched = patchPiSubagentsCorrectness(
 		relativePath,

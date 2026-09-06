@@ -4,13 +4,13 @@ import { dirname, resolve } from "node:path";
 
 const require = createRequire(import.meta.url);
 
-export const FEYNMAN_UNDICI_VERSION = "8.10.0";
+export const FEYNMAN_UNDICI_VERSION = "8.10.2";
 const UPSTREAM_PI_UNDICI_VERSION = "8.5.0";
 const PRIOR_FEYNMAN_UNDICI_VERSION = "8.9.0";
 const FEYNMAN_UNDICI_LOCK_ENTRY = {
 	version: FEYNMAN_UNDICI_VERSION,
 	resolved: `https://registry.npmjs.org/undici/-/undici-${FEYNMAN_UNDICI_VERSION}.tgz`,
-	integrity: "sha512-HvltHd7avK13QIw/oLe4qoOLyoVSoafqJ2jYOrtMRBkbYT31eiBQ8O0ehRKZiEZCMEyLFQNIADpgCWC5fALvYQ==",
+	integrity: "sha512-/y4/bH9YNU5hi9NIrpOuvGXFcxrj3CMrV+/AYpowAYTpHn8gX/XPFjNy766FPoYY0miQhdW977JFWKGNhBdwyQ==",
 	license: "MIT",
 	engines: { node: ">=22.19.0" },
 };
@@ -28,6 +28,7 @@ function assertSupportedUndiciVersion(version, surface) {
 		![
 			UPSTREAM_PI_UNDICI_VERSION,
 			PRIOR_FEYNMAN_UNDICI_VERSION,
+			"8.10.0",
 			FEYNMAN_UNDICI_VERSION,
 		].includes(version)
 	) {
@@ -132,9 +133,9 @@ export function patchPiUndiciPackageLockSource(source, requiredPiVersion) {
 }
 
 /**
- * Pi 0.84.2 shrinkwraps Undici 8.9.0. Replace that nested tree with 8.10.0 so
+ * Pi 0.85.1 still shrinkwraps an older Undici. Replace that nested tree with 8.10.2 so
  * Feynman and Pi inherit the current proxy and retrieval reliability fixes.
- * Remove this patch after a supported Pi release depends on Undici >=8.10.0.
+ * Remove this patch after a supported Pi release depends on Undici >=8.10.2.
  */
 export function patchPiUndiciProxyTree(nodeModulesPath, fallbackPackagePath, requiredPiVersion) {
 	const piRoots = ["@earendil-works", "@mariozechner"]

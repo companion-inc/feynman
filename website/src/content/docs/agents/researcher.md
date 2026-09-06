@@ -11,7 +11,7 @@ The researcher is the primary information-gathering agent in Feynman. It searche
 
 The researcher agent handles source discovery and extraction for workflows that need gathered evidence. It formulates search queries based on your topic, evaluates results for relevance, reads selected sources in depth, and extracts structured information including claims, methodology, results, and limitations.
 
-For broad deep research and literature review tasks, workflow prompts can spawn multiple researcher agents in parallel. Each agent tackles a different angle of the topic. One might search for foundational papers while another looks for recent work that challenges the established view. This parallel approach produces broader coverage than a single sequential search.
+For broad deep research and literature review tasks, workflow prompts can spawn multiple researcher agents in parallel through one async `workflowScript` using `await runs.all([{key, agent, task, output}, ...])`. Each child tackles a different angle of the topic. One might search for foundational papers while another looks for recent work that challenges the established view. Feynman consumes the ordered results and verifies the declared output paths before synthesis. This parallel approach produces broader coverage than a single sequential search.
 
 ## Search strategy
 

@@ -61,7 +61,7 @@ export function assertPiWebAccessForwardFixSources(sources, surface, version) {
 		['const child = spawn("xdg-open", [url], { detached: true, stdio: "ignore" });', 1],
 		["const timer = setTimeout(resolve, 100);", 1],
 		["child.unref();", 1],
-		["export interface ProviderAvailability {", 1],
+		['export type { ProviderAvailability } from "./gemini-search.ts";', 1],
 		['export type CuratorProvider = Exclude<SearchProvider, "auto">;', 1],
 		["function shouldUseOpenAICodexDefault(", 1],
 		["export function resolveCuratorDefaultProvider(", 1],
@@ -291,7 +291,7 @@ function replaceModelAwareSearchHunk(source, original, replacement, relativePath
 	if (source.includes(replacement)) return source;
 	if (!source.includes(original)) {
 		throw new Error(
-			`Unsupported pi-web-access 0.25.0 ${relativePath}: model-aware search hunk is missing (${label})`,
+			`Unsupported pi-web-access 0.28.0 ${relativePath}: model-aware search hunk is missing (${label})`,
 		);
 	}
 	return source.replace(original, replacement);
@@ -513,7 +513,7 @@ function patchModelAwareIndexSource(source) {
 		source.includes("routing.useCurrentModel === true") &&
 		source.includes("isCurrentModelHostedSearchEligible(ctx)")
 	) {
-		// pi-web-access 0.25.0 owns the model-aware default and extends it with
+		// pi-web-access 0.28.0 owns the model-aware default and extends it with
 		// explicit current-model Hosted Search routing.
 		return source;
 	}
@@ -568,7 +568,7 @@ function patchModelAwareIndexSource(source) {
 			);
 		} else {
 			throw new Error(
-				"Unsupported pi-web-access 0.25.0 index.ts: model-aware search hunk is missing (tool description)",
+				"Unsupported pi-web-access 0.28.0 index.ts: model-aware search hunk is missing (tool description)",
 			);
 		}
 	}

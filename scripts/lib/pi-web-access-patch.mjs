@@ -23,7 +23,7 @@ import {
 	patchSsrfNoProxySource,
 } from "./pi-web-access-security-patch.mjs";
 
-export const PI_WEB_ACCESS_REQUIRED_VERSION = "0.25.0";
+export const PI_WEB_ACCESS_REQUIRED_VERSION = "0.28.0";
 export {
 	PI_WEB_ACCESS_FORWARD_FILE_TARGETS,
 	patchPiWebAccessForwardFixSource,
@@ -63,6 +63,9 @@ export const PI_WEB_ACCESS_PATCH_TARGETS = [
 	"video-extract.ts",
 	"youtube-extract.ts",
 	"utils.ts",
+	"xai-search.ts",
+	"mistral-search.ts",
+	"xcrawl.ts",
 ];
 
 export function assertPiWebAccessVersion(version, surface) {
@@ -150,7 +153,8 @@ export function assertPiWebAccessPatchedSources(sources, surface = "patched sour
 		["modelMatchesScopedModels(summaryContext.model, summaryContext.scopedModels)", 1],
 		["const SEARCH_CALL_TIMEOUT_MS = 90000;", 1],
 		["function searchWithDeadline(", 1],
-		["await searchWithDeadline(", 2],
+		["await searchWithDeadline(", 5],
+		["() => searchWithDeadline(query, {", 1],
 		['pi.registerCommand("web-results",', 1],
 		['params.workflow ?? configWorkflow ?? "none"', 1],
 		["summary-review = open curator with auto summary draft (opt-in)", 1],
@@ -167,7 +171,7 @@ export function assertPiWebAccessPatchedSources(sources, surface = "patched sour
 		['if (fetchContentEnabled) pi.registerTool({', 1],
 		['if (getSearchContentEnabled) {', 1],
 		["proxy: Type.Optional(Type.String({", 3],
-		["runWithProxy(", 7],
+		["runWithProxy(", 9],
 		["installGlobalProxyFetch();", 1],
 	], surface);
 	rejectMarkers(
@@ -185,6 +189,8 @@ export function assertPiWebAccessPatchedSources(sources, surface = "patched sour
 			"scopedModels: ctx.scopedModels",
 			'pi.registerCommand("search",',
 			"const response = await search(queryList[qi], {",
+			"const response = await search(query, {",
+			"() => search(query, {",
 			"const { answer, results, inlineContent, provider } = await search(query, {",
 			INDEX_COMMAND_CONFIG_ORIGINAL,
 			INDEX_COMMAND_GATE_TYPE_ORIGINAL,
@@ -233,7 +239,7 @@ export function assertPiWebAccessPatchedSources(sources, surface = "patched sour
 
 	const pageQuerySource = sources.get("page-query.ts");
 	requireMarkerCounts(pageQuerySource, "page-query.ts", [
-		['import { modelMatchesScopedModels } from "./summary-model-scope.ts";', 1],
+		['import { findModelWithProviderRouting, modelMatchesScopedModels } from "./summary-model-scope.ts";', 1],
 		["modelMatchesScopedModels(model, ctx.scopedModels)", 1],
 	], surface);
 	rejectMarkers(
@@ -395,6 +401,8 @@ export function assertPiWebAccessPatchedSources(sources, surface = "patched sour
 	requireMarkerCounts(utilsSource, "utils.ts", [
 		['import net from "node:net";', 1],
 		["export function runWithProxy<T>(", 1],
+		["return proxyStorage.getStore() ?? null;", 1],
+		["return proxyStorage.run(configured, fn);", 1],
 		["export function isProxyBypassedUrl(", 1],
 		["function isIpv4MappedLoopback(", 1],
 		["function parseNoProxyEntry(", 1],
@@ -637,6 +645,7 @@ function patchWebSearchHangSource(source) {
 	for (const callOriginal of [
 		"const { answer, results, inlineContent, provider } = await search(queryList[qi], {",
 		"const response = await search(queryList[qi], {",
+		"const response = await search(query, {",
 		"const { answer, results, inlineContent, provider } = await search(query, {",
 	]) {
 		const callPatched = callOriginal.replace("await search(", "await searchWithDeadline(");
@@ -646,6 +655,7 @@ function patchWebSearchHangSource(source) {
 		}
 	}
 
+	patched = patched.replace("() => search(query, {", "() => searchWithDeadline(query, {");
 	return { source: patched, changed };
 }
 
@@ -784,7 +794,7 @@ function patchSummaryModelScopeSource(source) {
 }
 
 export function patchPiWebAccessSource(relativePath, source) {
-	let patched = source;
+	let patched = source.replace(/\r\n/g, "\n");
 	let changed = false;
 
 	if (!patched.includes(PATCHED_CONFIG_EXPR)) {
@@ -989,9 +999,9 @@ export function patchPiWebAccessSource(relativePath, source) {
 
 	if (relativePath === "page-query.ts") {
 		const scopeImportOriginal =
-			'import { loadEnabledModelPatterns, modelMatchesEnabledPatterns } from "./summary-model-scope.ts";';
+			'import { findModelWithProviderRouting, loadEnabledModelPatterns, modelMatchesEnabledPatterns } from "./summary-model-scope.ts";';
 		const scopeImportPatched =
-			'import { modelMatchesScopedModels } from "./summary-model-scope.ts";';
+			'import { findModelWithProviderRouting, modelMatchesScopedModels } from "./summary-model-scope.ts";';
 		if (patched.includes(scopeImportOriginal)) {
 			patched = patched.replace(scopeImportOriginal, scopeImportPatched);
 			changed = true;
