@@ -51,14 +51,14 @@ jobs:
         # Issue #177 regression: this must succeed on every supported Node,
         # including the newest major — a failing preinstall used to roll the
         # install back and pin users to the previous version.
-        run: npm install -g "@companion-ai/feynman@${FEYNMAN_VERSION_INPUT}"
+        run: npm install -g "@advaitpaliwal/feynman@${FEYNMAN_VERSION_INPUT}"
 
       - name: feynman --version
         run: |
           set -x
           feynman --version
           installed="$(feynman --version | tail -1)"
-          expected="$(npm view "@companion-ai/feynman@${FEYNMAN_VERSION_INPUT}" version | tail -1)"
+          expected="$(npm view "@advaitpaliwal/feynman@${FEYNMAN_VERSION_INPUT}" version | tail -1)"
           if [ "$installed" != "$expected" ]; then
             echo "version mismatch: installed=$installed expected=$expected" >&2
             exit 1
@@ -80,7 +80,7 @@ jobs:
             const { existsSync, readFileSync } = require("node:fs");
             const { join } = require("node:path");
             const root = execSync("npm root -g").toString().trim();
-            const pkg = join(root, "@companion-ai", "feynman");
+            const pkg = join(root, "@advaitpaliwal", "feynman");
             const candidates = [
               join(pkg, ".feynman", "npm", "node_modules", "pi-subagents", "src", "runs", "shared", "pi-spawn.ts"),
               join(pkg, ".feynman", "npm", "node_modules", "pi-subagents", "pi-spawn.ts"),
@@ -99,7 +99,7 @@ jobs:
             const { existsSync, readFileSync } = require("node:fs");
             const { join } = require("node:path");
             const root = execSync("npm root -g").toString().trim();
-            const pkg = join(root, "@companion-ai", "feynman");
+            const pkg = join(root, "@advaitpaliwal", "feynman");
             const candidates = [
               join(pkg, "node_modules", "@companion-ai", "alpha-hub", "src", "lib", "index.js"),
               join(pkg, ".feynman", "npm", "node_modules", "@companion-ai", "alpha-hub", "src", "lib", "index.js"),
@@ -152,7 +152,7 @@ jobs:
             const { existsSync, readFileSync } = require("node:fs");
             const { join } = require("node:path");
             const root = execSync("npm root -g").toString().trim();
-            const pkg = join(root, "@companion-ai", "feynman");
+            const pkg = join(root, "@advaitpaliwal", "feynman");
             const spawnPath = join(pkg, ".feynman", "npm", "node_modules", "pi-subagents", "src", "runs", "shared", "pi-spawn.ts");
             const src = existsSync(spawnPath) ? readFileSync(spawnPath, "utf8") : "";
             console.log("pi-spawn exists:", existsSync(spawnPath));
@@ -210,7 +210,7 @@ jobs:
         shell: bash
         run: |
           set -euxo pipefail
-          expected=$(npm view "@companion-ai/feynman@${FEYNMAN_VERSION_INPUT}" version | tail -1)
+          expected=$(npm view "@advaitpaliwal/feynman@${FEYNMAN_VERSION_INPUT}" version | tail -1)
           install_root="$RUNNER_TEMP/feynman-native-install"
           installer="$RUNNER_TEMP/feynman-install.sh"
           curl --fail --location --silent --show-error \
@@ -248,7 +248,7 @@ jobs:
         run: |
           $ErrorActionPreference = "Stop"
           $expected = (
-            & npm view "@companion-ai/feynman@$env:FEYNMAN_VERSION_INPUT" version |
+            & npm view "@advaitpaliwal/feynman@$env:FEYNMAN_VERSION_INPUT" version |
               Select-Object -Last 1
           ).ToString().Trim()
           if ($LASTEXITCODE -ne 0) {
@@ -323,7 +323,7 @@ jobs:
           set -euxo pipefail
           npm pack --dry-run --json > "$RUNNER_TEMP/pack-dry-run.json"
           npm pack --json --pack-destination "$RUNNER_TEMP" > "$RUNNER_TEMP/pack.json"
-          tarball="$RUNNER_TEMP/companion-ai-feynman-$(node -p "require('./package.json').version").tgz"
+          tarball="$RUNNER_TEMP/advaitpaliwal-feynman-$(node -p "require('./package.json').version").tgz"
           test -s "$tarball"
           node scripts/verify-package-budget.mjs "$RUNNER_TEMP/pack.json" "$tarball"
           npm audit --omit=dev --prefix .feynman/npm
@@ -340,16 +340,16 @@ jobs:
           HOME="$RUNNER_TEMP/feynman-home" FEYNMAN_HOME="$RUNNER_TEMP/feynman-home" "$bin" packages list
           HOME="$RUNNER_TEMP/feynman-home" FEYNMAN_HOME="$RUNNER_TEMP/feynman-home" "$bin" search status
           node scripts/verify-stale-pi-upgrade.mjs "$bin"
-          node "$consumer/node_modules/@companion-ai/feynman/scripts/verify-package-artifact.mjs" \
-            "$consumer/node_modules/@companion-ai/feynman"
-          node "$consumer/node_modules/@companion-ai/feynman/scripts/verify-installed-runtime.mjs" "$bin"
-          node "$consumer/node_modules/@companion-ai/feynman/scripts/verify-installed-docparser.mjs"
+          node "$consumer/node_modules/@advaitpaliwal/feynman/scripts/verify-package-artifact.mjs" \
+            "$consumer/node_modules/@advaitpaliwal/feynman"
+          node "$consumer/node_modules/@advaitpaliwal/feynman/scripts/verify-installed-runtime.mjs" "$bin"
+          node "$consumer/node_modules/@advaitpaliwal/feynman/scripts/verify-installed-docparser.mjs"
           test -z "$(git status --porcelain --untracked-files=all)"
 
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: pr-npm-package
-          path: ${{ runner.temp }}/companion-ai-feynman-*.tgz
+          path: ${{ runner.temp }}/advaitpaliwal-feynman-*.tgz
           if-no-files-found: error
 
   supported-node-consumers-pr:
@@ -426,7 +426,7 @@ jobs:
           "$global_bin" --help >/dev/null
           runtime_audit="$RUNNER_TEMP/feynman-runtime-audit"
           mkdir -p "$runtime_audit"
-          runtime_archive="$consumer/node_modules/@companion-ai/feynman/.feynman/runtime-workspace.tgz"
+          runtime_archive="$consumer/node_modules/@advaitpaliwal/feynman/.feynman/runtime-workspace.tgz"
           if command -v cygpath >/dev/null 2>&1; then
             runtime_archive=$(cygpath -u "$runtime_archive")
             runtime_audit=$(cygpath -u "$runtime_audit")
@@ -435,16 +435,16 @@ jobs:
             "$runtime_archive" \
             -C "$runtime_audit"
           npm audit --omit=dev --prefix "$runtime_audit/npm"
-          node "$consumer/node_modules/@companion-ai/feynman/scripts/verify-package-artifact.mjs" \
-            "$consumer/node_modules/@companion-ai/feynman"
-          node "$consumer/node_modules/@companion-ai/feynman/scripts/verify-installed-runtime.mjs" "$bin"
-          node "$consumer/node_modules/@companion-ai/feynman/scripts/verify-installed-docparser.mjs"
+          node "$consumer/node_modules/@advaitpaliwal/feynman/scripts/verify-package-artifact.mjs" \
+            "$consumer/node_modules/@advaitpaliwal/feynman"
+          node "$consumer/node_modules/@advaitpaliwal/feynman/scripts/verify-installed-runtime.mjs" "$bin"
+          node "$consumer/node_modules/@advaitpaliwal/feynman/scripts/verify-installed-docparser.mjs"
           global_node_modules=$(npm root --global --prefix "$global_prefix")
           if command -v cygpath >/dev/null 2>&1; then
             global_node_modules=$(cygpath -u "$global_node_modules")
           fi
-          node "$global_node_modules/@companion-ai/feynman/scripts/verify-installed-runtime.mjs" "$global_bin"
-          node "$global_node_modules/@companion-ai/feynman/scripts/verify-installed-docparser.mjs"
+          node "$global_node_modules/@advaitpaliwal/feynman/scripts/verify-installed-runtime.mjs" "$global_bin"
+          node "$global_node_modules/@advaitpaliwal/feynman/scripts/verify-installed-docparser.mjs"
 
   windows-native-installer-pr:
     if: github.event_name == 'pull_request'

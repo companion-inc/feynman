@@ -6,7 +6,7 @@
 <p align="center">The open source AI research agent.</p>
 <p align="center">
   <a href="https://feynman.is/docs"><img alt="Docs" src="https://img.shields.io/badge/docs-feynman.is-0d9668?style=flat-square" /></a>
-  <a href="https://github.com/companion-inc/feynman/blob/main/LICENSE"><img alt="License" src="https://img.shields.io/github/license/companion-inc/feynman?style=flat-square" /></a>
+  <a href="https://github.com/advaitpaliwal/feynman/blob/main/LICENSE"><img alt="License" src="https://img.shields.io/github/license/advaitpaliwal/feynman?style=flat-square" /></a>
 </p>
 
 ---
@@ -32,6 +32,23 @@ The installer downloads a standalone native bundle with its own pinned Node.js r
 To upgrade the standalone app later, rerun the installer. `feynman update` only refreshes installed Pi packages inside Feynman's environment; it does not replace the standalone runtime bundle itself.
 
 To uninstall the standalone app, remove the launcher and runtime bundle, then optionally remove `~/.feynman` if you also want to delete settings, workbench app state, sessions, and installed package state. If you also want to delete alphaXiv login state, remove `~/.ahub`. See the installation guide for platform-specific paths.
+
+**npm alternative** (uses your local Node.js runtime):
+
+```bash
+npm install -g @advaitpaliwal/feynman
+```
+
+To update an npm installation, run `npm install -g @advaitpaliwal/feynman@latest`.
+
+If you installed the old scoped package, migrate once:
+
+```bash
+npm uninstall -g @companion-ai/feynman
+npm install -g @advaitpaliwal/feynman
+```
+
+The command remains `feynman`; the native install commands above are unchanged. See the [installation guide](https://feynman.is/docs/getting-started/installation) for Node.js requirements and uninstall instructions.
 
 Local models are supported through the setup flow. For LM Studio, run `feynman setup`, choose `LM Studio`, and keep the default `http://localhost:1234/v1` unless you changed the server port. For LiteLLM, choose `LiteLLM Proxy` and keep the default `http://localhost:4000/v1`. For Ollama or vLLM, choose `Custom provider (baseUrl + API key)`, use `openai-completions`, and point it at the local `/v1` endpoint.
 
@@ -215,11 +232,11 @@ Built on [Pi](https://github.com/badlogic/pi-mono) for the agent runtime, [alpha
 
 ### Star History
 
-<a href="https://www.star-history.com/?repos=companion-inc%2Ffeynman&type=date&legend=top-left">
+<a href="https://www.star-history.com/?repos=advaitpaliwal%2Ffeynman&type=date&legend=top-left">
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=companion-inc/feynman&type=date&theme=dark&legend=top-left" />
-    <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=companion-inc/feynman&type=date&legend=top-left" />
-    <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=companion-inc/feynman&type=date&legend=top-left" />
+    <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=advaitpaliwal/feynman&type=date&theme=dark&legend=top-left" />
+    <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=advaitpaliwal/feynman&type=date&legend=top-left" />
+    <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=advaitpaliwal/feynman&type=date&legend=top-left" />
   </picture>
 </a>
 
@@ -230,7 +247,7 @@ Built on [Pi](https://github.com/badlogic/pi-mono) for the agent runtime, [alpha
 See [CONTRIBUTING.md](CONTRIBUTING.md) for the full contributor guide.
 
 ```bash
-git clone https://github.com/companion-inc/feynman.git
+git clone https://github.com/advaitpaliwal/feynman.git
 cd feynman
 nvm use || nvm install
 npm install

@@ -1,6 +1,6 @@
 {
-  "name": "@companion-ai/feynman",
-  "version": "0.3.47",
+  "name": "@advaitpaliwal/feynman",
+  "version": "0.3.48",
   "description": "Research-first CLI agent built on Pi and alphaXiv",
   "license": "MIT",
   "type": "module",
@@ -137,7 +137,7 @@
     "basic-ftp": "5.3.1",
     "brace-expansion": "5.0.9",
     "hono": "4.12.34",
-    "qs": "6.15.2",
+    "qs": "6.16.0",
     "ws": "8.21.0",
     "@modelcontextprotocol/sdk": {
       "@hono/node-server": "2.0.12",
@@ -157,7 +157,7 @@
         }
       }
     },
-    "fast-uri": "3.1.5",
+    "fast-uri": "3.1.6",
     "esbuild": "0.28.1",
     "fast-xml-builder": "1.2.0",
     "nanoid": "3.3.18",
@@ -184,17 +184,20 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/companion-inc/feynman.git"
+    "url": "git+https://github.com/advaitpaliwal/feynman.git"
   },
-  "homepage": "https://github.com/companion-inc/feynman#readme",
+  "homepage": "https://github.com/advaitpaliwal/feynman#readme",
   "bugs": {
-    "url": "https://github.com/companion-inc/feynman/issues"
+    "url": "https://github.com/advaitpaliwal/feynman/issues"
   },
   "main": "index.js",
   "directories": {
     "test": "tests"
   },
-  "author": "",
+  "author": "Advait Paliwal",
+  "publishConfig": {
+    "access": "public"
+  },
   "optionalDependencies": {
     "@llamaindex/liteparse-darwin-arm64": "2.14.0",
     "@llamaindex/liteparse-darwin-x64": "2.14.0",

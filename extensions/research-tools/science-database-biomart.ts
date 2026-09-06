@@ -103,7 +103,7 @@ async function fetchBiomartText(params: URLSearchParams, init?: RequestInit): Pr
 				...init,
 				headers: {
 					accept: "text/plain, application/xml, text/xml, */*",
-					"user-agent": "feynman-science-database-search/1.0 (https://github.com/companion-ai/feynman)",
+					"user-agent": "feynman-science-database-search/1.0 (https://github.com/advaitpaliwal/feynman)",
 					...(init?.headers ?? {}),
 				},
 				signal: controller.signal,

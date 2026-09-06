@@ -6,6 +6,15 @@ GitHub release notes are generated from the matching `## vX.Y.Z` section in this
 
 ## Unreleased
 
+## v0.3.48 - 2026-09-06
+
+### Installation and source reliability
+
+- Moved the canonical GitHub repository to `advaitpaliwal/feynman`. Native installers, skills downloads, package source/issue metadata, and public documentation now use the new owner directly.
+- The canonical npm package is now `@advaitpaliwal/feynman`. Migrate old npm installs with `npm uninstall -g @companion-ai/feynman`, then `npm install -g @advaitpaliwal/feynman`. Future npm updates use `npm install -g @advaitpaliwal/feynman@latest`. The command remains `feynman`, and native install commands are unchanged.
+- Historical release attestations retain their original source identity; new releases are verified against the new repository owner without relaxing provenance checks.
+- Updated affected URL/query parsing dependencies in the CLI and bundled research runtime, plus the website's browser-target resolver, to patched versions.
+
 ## v0.3.47 - 2026-08-26
 
 ### Research continuity

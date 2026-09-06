@@ -82,12 +82,14 @@ test("vendored runtime uses a committed exact dependency lock", () => {
 				runtimeLock.packages["node_modules/@types/node"]?.version,
 			fastUri:
 				runtimeLock.packages["node_modules/fast-uri"]?.version,
+			qs: runtimeLock.packages["node_modules/qs"]?.version,
 			hono: runtimeLock.packages["node_modules/hono"]?.version,
 		},
 		{
 			piTelemetry: "0.84.2",
 			nodeTypes: "26.2.0",
-			fastUri: "3.1.5",
+			fastUri: "3.1.6",
+			qs: "6.16.0",
 			hono: "4.13.3",
 		},
 	);

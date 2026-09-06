@@ -59,7 +59,7 @@ async function responseFor(url: URL, init?: RequestInit): Promise<Response> {
 			...init,
 			headers: {
 				accept: "application/json",
-				"user-agent": "feynman-science-database-search/1.0 (https://github.com/companion-ai/feynman)",
+				"user-agent": "feynman-science-database-search/1.0 (https://github.com/advaitpaliwal/feynman)",
 				...(init?.headers ?? {}),
 			},
 			signal: controller.signal,

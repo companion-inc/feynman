@@ -425,7 +425,7 @@ test("runtime 0.25.0 rejects unsafe GitHub clone identities", () => {
 			input: `
 				const { parseGitHubUrl } = await import(${JSON.stringify(githubUrl)});
 				console.log(JSON.stringify({
-					valid: parseGitHubUrl("https://github.com/companion-inc/feynman"),
+					valid: parseGitHubUrl("https://github.com/advaitpaliwal/feynman"),
 					doubleDashOwner: parseGitHubUrl("https://github.com/bad--owner/repo"),
 					badRepo: parseGitHubUrl("https://github.com/owner/repo%24"),
 					badEncoding: parseGitHubUrl("https://github.com/owner/%E0%A4%A"),
@@ -441,7 +441,7 @@ test("runtime 0.25.0 rejects unsafe GitHub clone identities", () => {
 		badEncoding: unknown;
 	};
 	assert.deepEqual(output.valid, {
-		owner: "companion-inc",
+		owner: "advaitpaliwal",
 		repo: "feynman",
 		refIsFullSha: false,
 		type: "root",

@@ -1,4 +1,4 @@
-export const FEYNMAN_PACKAGE_NAME = "@companion-ai/feynman";
+export const FEYNMAN_PACKAGE_NAME = "@advaitpaliwal/feynman";
 const REGISTRY_LATEST_URL = `https://registry.npmjs.org/${FEYNMAN_PACKAGE_NAME}/latest`;
 
 function parseVersion(version: string): number[] | undefined {

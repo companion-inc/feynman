@@ -7,6 +7,7 @@ import { resolveVerifiedNpmSourceCommit } from "../scripts/lib/npm-provenance.mj
 const name = "@companion-ai/feynman";
 const version = "0.3.6";
 const commit = "ccc8030c1090efb6afab8c4f907115309d1eb788";
+// This real certificate belongs to a pre-transfer release. Never rewrite its identity.
 const repository = "https://github.com/companion-inc/feynman";
 const workflowPath = ".github/workflows/publish.yml";
 const ref = "refs/heads/main";
@@ -103,6 +104,34 @@ const expected = {
 
 test("resolves the source commit from npm-verified SLSA provenance", () => {
 	assert.equal(resolveVerifiedNpmSourceCommit(auditFixture(), expected), commit);
+});
+
+test("a repository transfer does not authorize old-owner provenance for new releases", () => {
+	const transferredRepository = "https://github.com/advaitpaliwal/feynman";
+	assert.throws(
+		() => resolveVerifiedNpmSourceCommit(auditFixture(), {
+			...expected,
+			repository: transferredRepository,
+		}),
+		/feynman npm provenance/,
+	);
+	assert.throws(
+		() => resolveVerifiedNpmSourceCommit(auditFixture({
+			repository: transferredRepository,
+			invocationId: invocationId.replace(repository, transferredRepository),
+		}), { ...expected, repository: transferredRepository }),
+		/feynman npm provenance/,
+	);
+});
+
+test("a package scope migration does not authorize old-package provenance", () => {
+	assert.throws(
+		() => resolveVerifiedNpmSourceCommit(auditFixture(), {
+			...expected,
+			name: "@advaitpaliwal/feynman",
+		}),
+		/feynman npm provenance/,
+	);
 });
 
 test("rejects unverified, wrong-package, and wrong-source provenance", () => {

@@ -78,7 +78,7 @@ resolve_version() {
   normalized_version="$(normalize_version "$VERSION")"
 
   if [ "$normalized_version" = "latest" ]; then
-    release_page="$(download_text "https://github.com/companion-inc/feynman/releases/latest")"
+    release_page="$(download_text "https://github.com/advaitpaliwal/feynman/releases/latest")"
     resolved_version="$(printf '%s\n' "$release_page" | sed -n 's@.*releases/tag/v\([0-9][^"<>[:space:]]*\).*@\1@p' | head -n 1)"
 
     if [ -z "$resolved_version" ]; then
@@ -159,10 +159,10 @@ archive_url="${FEYNMAN_INSTALL_SKILLS_ARCHIVE_URL:-}"
 if [ -z "$archive_url" ]; then
   case "$git_ref" in
     main)
-      archive_url="https://github.com/companion-inc/feynman/archive/refs/heads/main.tar.gz"
+      archive_url="https://github.com/advaitpaliwal/feynman/archive/refs/heads/main.tar.gz"
       ;;
     v*)
-      archive_url="https://github.com/companion-inc/feynman/archive/refs/tags/${git_ref}.tar.gz"
+      archive_url="https://github.com/advaitpaliwal/feynman/archive/refs/tags/${git_ref}.tar.gz"
       ;;
   esac
 fi
